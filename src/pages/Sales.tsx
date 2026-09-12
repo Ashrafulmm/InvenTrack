@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useData } from '../store/DataContext';
-import { Search, Filter, Eye, X, Calendar } from 'lucide-react';
+import { Search, Eye, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function Sales() {
-  const { sales } = useData();
+  const { sales, loading } = useData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
@@ -13,12 +13,12 @@ export default function Sales() {
   const [selectedSale, setSelectedSale] = useState<string | null>(null);
 
   const filteredSales = sales.filter(s => {
-    const matchesSearch = s.customerName.toLowerCase().includes(search.toLowerCase()) ||
+    const matchesSearch = s.customer_name.toLowerCase().includes(search.toLowerCase()) ||
       s.id.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !statusFilter || s.status === statusFilter;
-    const matchesPayment = !paymentFilter || s.paymentMethod === paymentFilter;
-    const matchesDateFrom = !dateFrom || new Date(s.date) >= new Date(dateFrom);
-    const matchesDateTo = !dateTo || new Date(s.date) <= new Date(dateTo + 'T23:59:59');
+    const matchesPayment = !paymentFilter || s.payment_method === paymentFilter;
+    const matchesDateFrom = !dateFrom || new Date(s.created_at) >= new Date(dateFrom);
+    const matchesDateTo = !dateTo || new Date(s.created_at) <= new Date(dateTo + 'T23:59:59');
     return matchesSearch && matchesStatus && matchesPayment && matchesDateFrom && matchesDateTo;
   });
 
@@ -27,6 +27,14 @@ export default function Sales() {
   const avgSale = totalSales > 0 ? totalRevenue / totalSales : 0;
 
   const saleDetail = sales.find(s => s.id === selectedSale);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -68,14 +76,12 @@ export default function Sales() {
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
-            placeholder="From"
           />
           <input
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
-            placeholder="To"
           />
         </div>
       </div>
@@ -116,11 +122,11 @@ export default function Sales() {
               {filteredSales.map(sale => (
                 <tr key={sale.id} className="border-t border-gray-50 hover:bg-gray-50">
                   <td className="py-3 px-4 font-mono text-xs">{sale.id.slice(-8)}</td>
-                  <td className="py-3 px-4 text-gray-600">{format(new Date(sale.date), 'MMM dd, yyyy HH:mm')}</td>
-                  <td className="py-3 px-4">{sale.customerName}</td>
+                  <td className="py-3 px-4 text-gray-600">{format(new Date(sale.created_at), 'MMM dd, yyyy HH:mm')}</td>
+                  <td className="py-3 px-4">{sale.customer_name}</td>
                   <td className="py-3 px-4 text-center">{sale.items.length}</td>
                   <td className="py-3 px-4">
-                    <span className="capitalize px-2 py-0.5 bg-gray-100 rounded text-xs">{sale.paymentMethod}</span>
+                    <span className="capitalize px-2 py-0.5 bg-gray-100 rounded text-xs">{sale.payment_method}</span>
                   </td>
                   <td className="py-3 px-4 text-right font-semibold">${sale.total.toFixed(2)}</td>
                   <td className="py-3 px-4 text-center">
@@ -170,15 +176,15 @@ export default function Sales() {
                 </div>
                 <div>
                   <p className="text-gray-500">Date</p>
-                  <p className="font-medium">{format(new Date(saleDetail.date), 'MMM dd, yyyy HH:mm')}</p>
+                  <p className="font-medium">{format(new Date(saleDetail.created_at), 'MMM dd, yyyy HH:mm')}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Customer</p>
-                  <p className="font-medium">{saleDetail.customerName}</p>
+                  <p className="font-medium">{saleDetail.customer_name}</p>
                 </div>
                 <div>
                   <p className="text-gray-500">Payment</p>
-                  <p className="font-medium capitalize">{saleDetail.paymentMethod}</p>
+                  <p className="font-medium capitalize">{saleDetail.payment_method}</p>
                 </div>
               </div>
 
@@ -196,9 +202,9 @@ export default function Sales() {
                   <tbody>
                     {saleDetail.items.map((item, idx) => (
                       <tr key={idx} className="border-b border-gray-50">
-                        <td className="py-2">{item.productName}</td>
+                        <td className="py-2">{item.product_name}</td>
                         <td className="py-2 text-right">{item.quantity}</td>
-                        <td className="py-2 text-right">${item.unitPrice.toFixed(2)}</td>
+                        <td className="py-2 text-right">${item.unit_price.toFixed(2)}</td>
                         <td className="py-2 text-right font-medium">${item.total.toFixed(2)}</td>
                       </tr>
                     ))}

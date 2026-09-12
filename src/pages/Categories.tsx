@@ -3,28 +3,36 @@ import { useData } from '../store/DataContext';
 import { Plus, Trash2, X, Package } from 'lucide-react';
 
 export default function Categories() {
-  const { categories, products, addCategory, deleteCategory } = useData();
+  const { categories, products, addCategory, deleteCategory, loading } = useData();
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#3B82F6');
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
-    addCategory({ name: newName.trim(), color: newColor });
+    await addCategory({ name: newName.trim(), color: newColor });
     setNewName('');
     setNewColor('#3B82F6');
     setShowModal(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     const category = categories.find(c => c.id === id);
     const productCount = products.filter(p => p.category === category?.name).length;
     if (productCount > 0) {
       if (!confirm(`This category has ${productCount} products. Delete anyway?`)) return;
     }
-    deleteCategory(id);
+    await deleteCategory(id);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -70,7 +78,7 @@ export default function Categories() {
               </div>
               <div className="mt-2">
                 <div className="w-full bg-gray-100 rounded-full h-1.5">
-                  <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (productCount / products.length) * 100 * 3)}%`, backgroundColor: cat.color }}></div>
+                  <div className="h-1.5 rounded-full" style={{ width: `${products.length > 0 ? Math.min(100, (productCount / products.length) * 100 * 3) : 0}%`, backgroundColor: cat.color }}></div>
                 </div>
               </div>
             </div>

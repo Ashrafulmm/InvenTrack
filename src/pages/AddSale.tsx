@@ -17,19 +17,19 @@ export default function AddSale() {
     if (!product) return;
     if (quantity <= 0 || quantity > product.stock) return;
 
-    const existing = items.find(i => i.productId === selectedProduct);
+    const existing = items.find(i => i.product_id === selectedProduct);
     if (existing) {
       setItems(items.map(i =>
-        i.productId === selectedProduct
-          ? { ...i, quantity: i.quantity + quantity, total: (i.quantity + quantity) * i.unitPrice }
+        i.product_id === selectedProduct
+          ? { ...i, quantity: i.quantity + quantity, total: (i.quantity + quantity) * i.unit_price }
           : i
       ));
     } else {
       setItems([...items, {
-        productId: product.id,
-        productName: product.name,
+        product_id: product.id,
+        product_name: product.name,
         quantity,
-        unitPrice: product.price,
+        unit_price: product.price,
         total: product.price * quantity,
       }]);
     }
@@ -38,7 +38,7 @@ export default function AddSale() {
   };
 
   const removeItem = (productId: string) => {
-    setItems(items.filter(i => i.productId !== productId));
+    setItems(items.filter(i => i.product_id !== productId));
   };
 
   const subtotal = items.reduce((sum, item) => sum + item.total, 0);
@@ -46,18 +46,18 @@ export default function AddSale() {
   const discountAmount = subtotal * (discount / 100);
   const total = subtotal + tax - discountAmount;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
 
-    addSale({
+    await addSale({
       items,
       subtotal,
       tax,
       discount: discountAmount,
       total,
-      paymentMethod,
-      customerName: customerName || 'Walk-in Customer',
+      payment_method: paymentMethod,
+      customer_name: customerName || 'Walk-in Customer',
       status: 'completed',
     });
 
@@ -136,15 +136,15 @@ export default function AddSale() {
               </thead>
               <tbody>
                 {items.map(item => (
-                  <tr key={item.productId} className="border-t border-gray-50">
-                    <td className="py-3 px-5 font-medium">{item.productName}</td>
-                    <td className="py-3 px-5 text-right">${item.unitPrice.toFixed(2)}</td>
+                  <tr key={item.product_id} className="border-t border-gray-50">
+                    <td className="py-3 px-5 font-medium">{item.product_name}</td>
+                    <td className="py-3 px-5 text-right">${item.unit_price.toFixed(2)}</td>
                     <td className="py-3 px-5 text-center">{item.quantity}</td>
                     <td className="py-3 px-5 text-right font-medium">${item.total.toFixed(2)}</td>
                     <td className="py-3 px-5 text-center">
                       <button
                         type="button"
-                        onClick={() => removeItem(item.productId)}
+                        onClick={() => removeItem(item.product_id)}
                         className="text-red-400 hover:text-red-600"
                       >
                         <Trash2 className="w-4 h-4" />

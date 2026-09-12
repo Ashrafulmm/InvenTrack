@@ -8,27 +8,26 @@ import {
 } from 'recharts';
 
 export default function Statistics() {
-  const { products, sales, categories } = useData();
+  const { products, sales, categories, loading } = useData();
   const [view, setView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
   const completedSales = sales.filter(s => s.status === 'completed');
 
-  // Time-based data
   const getTimeData = () => {
     const today = startOfDay(new Date());
     
     if (view === 'daily') {
       const days = Array.from({ length: 30 }, (_, i) => subDays(today, 29 - i));
       return days.map(day => {
-        const daySales = completedSales.filter(s => startOfDay(new Date(s.date)).getTime() === day.getTime());
+        const daySales = completedSales.filter(s => startOfDay(new Date(s.created_at)).getTime() === day.getTime());
         return {
           label: format(day, 'MMM dd'),
           revenue: daySales.reduce((sum, s) => sum + s.total, 0),
           sales: daySales.length,
           profit: daySales.reduce((sum, s) => {
             return sum + s.items.reduce((iSum, item) => {
-              const product = products.find(p => p.id === item.productId);
-              return iSum + (product ? (item.unitPrice - product.cost) * item.quantity : 0);
+              const product = products.find(p => p.id === item.product_id);
+              return iSum + (product ? (item.unit_price - product.cost) * item.quantity : 0);
             }, 0);
           }, 0),
         };
@@ -38,7 +37,7 @@ export default function Statistics() {
       return weeks.map(week => {
         const weekEnd = subDays(week, -6);
         const weekSales = completedSales.filter(s => {
-          const d = startOfDay(new Date(s.date));
+          const d = startOfDay(new Date(s.created_at));
           return d >= week && d <= weekEnd;
         });
         return {
@@ -47,8 +46,8 @@ export default function Statistics() {
           sales: weekSales.length,
           profit: weekSales.reduce((sum, s) => {
             return sum + s.items.reduce((iSum, item) => {
-              const product = products.find(p => p.id === item.productId);
-              return iSum + (product ? (item.unitPrice - product.cost) * item.quantity : 0);
+              const product = products.find(p => p.id === item.product_id);
+              return iSum + (product ? (item.unit_price - product.cost) * item.quantity : 0);
             }, 0);
           }, 0),
         };
@@ -58,7 +57,7 @@ export default function Statistics() {
       return months.map(month => {
         const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
         const monthSales = completedSales.filter(s => {
-          const d = new Date(s.date);
+          const d = new Date(s.created_at);
           return d >= month && d <= monthEnd;
         });
         return {
@@ -67,8 +66,8 @@ export default function Statistics() {
           sales: monthSales.length,
           profit: monthSales.reduce((sum, s) => {
             return sum + s.items.reduce((iSum, item) => {
-              const product = products.find(p => p.id === item.productId);
-              return iSum + (product ? (item.unitPrice - product.cost) * item.quantity : 0);
+              const product = products.find(p => p.id === item.product_id);
+              return iSum + (product ? (item.unit_price - product.cost) * item.quantity : 0);
             }, 0);
           }, 0),
         };
@@ -80,7 +79,7 @@ export default function Statistics() {
 
   // Hourly distribution
   const hourlyData = Array.from({ length: 24 }, (_, hour) => {
-    const hourSales = completedSales.filter(s => new Date(s.date).getHours() === hour);
+    const hourSales = completedSales.filter(s => new Date(s.created_at).getHours() === hour);
     return {
       hour: `${hour.toString().padStart(2, '0')}:00`,
       sales: hourSales.length,
@@ -92,7 +91,7 @@ export default function Statistics() {
   const radarData = categories.map(cat => {
     const catProducts = products.filter(p => p.category === cat.name);
     const catSales = completedSales.filter(s => 
-      s.items.some(i => products.find(p => p.id === i.productId)?.category === cat.name)
+      s.items.some(i => products.find(p => p.id === i.product_id)?.category === cat.name)
     );
     return {
       category: cat.name.slice(0, 8),
@@ -100,7 +99,7 @@ export default function Statistics() {
       sales: catSales.length,
       revenue: catSales.reduce((sum, s) => {
         return sum + s.items
-          .filter(i => products.find(p => p.id === i.productId)?.category === cat.name)
+          .filter(i => products.find(p => p.id === i.product_id)?.category === cat.name)
           .reduce((iSum, i) => iSum + i.total, 0);
       }, 0),
     };
@@ -108,9 +107,9 @@ export default function Statistics() {
 
   // Price vs Quantity scatter
   const scatterData = products.map(p => {
-    const productSales = completedSales.filter(s => s.items.some(i => i.productId === p.id));
+    const productSales = completedSales.filter(s => s.items.some(i => i.product_id === p.id));
     const totalQty = productSales.reduce((sum, s) => {
-      return sum + s.items.filter(i => i.productId === p.id).reduce((iSum, i) => iSum + i.quantity, 0);
+      return sum + s.items.filter(i => i.product_id === p.id).reduce((iSum, i) => iSum + i.quantity, 0);
     }, 0);
     return {
       name: p.name,
@@ -122,9 +121,9 @@ export default function Statistics() {
 
   // Stock health
   const stockHealth = {
-    healthy: products.filter(p => p.stock > p.minStock * 2).length,
-    adequate: products.filter(p => p.stock > p.minStock && p.stock <= p.minStock * 2).length,
-    low: products.filter(p => p.stock <= p.minStock && p.stock > 0).length,
+    healthy: products.filter(p => p.stock > p.min_stock * 2).length,
+    adequate: products.filter(p => p.stock > p.min_stock && p.stock <= p.min_stock * 2).length,
+    low: products.filter(p => p.stock <= p.min_stock && p.stock > 0).length,
     outOfStock: products.filter(p => p.stock === 0).length,
   };
 
@@ -140,6 +139,14 @@ export default function Statistics() {
       color: cat.color,
     };
   }).filter(d => d.margin > 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -254,14 +261,16 @@ export default function Statistics() {
               <p className="text-xs text-red-600">Zero quantity</p>
             </div>
           </div>
-          <div className="mt-4">
-            <div className="flex h-3 rounded-full overflow-hidden">
-              <div className="bg-green-500" style={{ width: `${(stockHealth.healthy / products.length) * 100}%` }}></div>
-              <div className="bg-blue-500" style={{ width: `${(stockHealth.adequate / products.length) * 100}%` }}></div>
-              <div className="bg-orange-500" style={{ width: `${(stockHealth.low / products.length) * 100}%` }}></div>
-              <div className="bg-red-500" style={{ width: `${(stockHealth.outOfStock / products.length) * 100}%` }}></div>
+          {products.length > 0 && (
+            <div className="mt-4">
+              <div className="flex h-3 rounded-full overflow-hidden">
+                <div className="bg-green-500" style={{ width: `${(stockHealth.healthy / products.length) * 100}%` }}></div>
+                <div className="bg-blue-500" style={{ width: `${(stockHealth.adequate / products.length) * 100}%` }}></div>
+                <div className="bg-orange-500" style={{ width: `${(stockHealth.low / products.length) * 100}%` }}></div>
+                <div className="bg-red-500" style={{ width: `${(stockHealth.outOfStock / products.length) * 100}%` }}></div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
