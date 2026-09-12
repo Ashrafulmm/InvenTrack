@@ -3,26 +3,26 @@ import { useData } from '../store/DataContext';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell
+  LineChart, Line, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { Download, FileText, TrendingUp, DollarSign, Package, Users } from 'lucide-react';
+import { Download } from 'lucide-react';
 
 export default function Reports() {
-  const { products, sales, categories } = useData();
+  const { products, sales, categories, loading } = useData();
   const [period, setPeriod] = useState<'7' | '30' | '90'>('30');
 
   const today = startOfDay(new Date());
   const startDate = subDays(today, parseInt(period));
   
   const periodSales = sales.filter(s => {
-    const saleDate = startOfDay(new Date(s.date));
+    const saleDate = startOfDay(new Date(s.created_at));
     return saleDate >= startDate && saleDate <= today && s.status === 'completed';
   });
 
   // Daily sales data
   const days = eachDayOfInterval({ start: startDate, end: today });
   const dailyData = days.map(day => {
-    const daySales = periodSales.filter(s => startOfDay(new Date(s.date)).getTime() === day.getTime());
+    const daySales = periodSales.filter(s => startOfDay(new Date(s.created_at)).getTime() === day.getTime());
     return {
       date: format(day, 'MMM dd'),
       revenue: daySales.reduce((sum, s) => sum + s.total, 0),
@@ -34,9 +34,9 @@ export default function Reports() {
   // Profit analysis
   const profitData = periodSales.reduce((acc, sale) => {
     sale.items.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
+      const product = products.find(p => p.id === item.product_id);
       if (product) {
-        const profit = (item.unitPrice - product.cost) * item.quantity;
+        const profit = (item.unit_price - product.cost) * item.quantity;
         acc.revenue += item.total;
         acc.cost += product.cost * item.quantity;
         acc.profit += profit;
@@ -47,12 +47,9 @@ export default function Reports() {
 
   // Category performance
   const categoryPerformance = categories.map(cat => {
-    const catSales = periodSales.filter(s => 
-      s.items.some(i => products.find(p => p.id === i.productId)?.category === cat.name)
-    );
-    const revenue = catSales.reduce((sum, s) => {
+    const revenue = periodSales.reduce((sum, s) => {
       return sum + s.items
-        .filter(i => products.find(p => p.id === i.productId)?.category === cat.name)
+        .filter(i => products.find(p => p.id === i.product_id)?.category === cat.name)
         .reduce((iSum, i) => iSum + i.total, 0);
     }, 0);
     return { name: cat.name, revenue, color: cat.color };
@@ -60,23 +57,23 @@ export default function Reports() {
 
   // Payment breakdown
   const paymentBreakdown = [
-    { name: 'Cash', value: periodSales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.total, 0), color: '#10B981' },
-    { name: 'Card', value: periodSales.filter(s => s.paymentMethod === 'card').reduce((sum, s) => sum + s.total, 0), color: '#3B82F6' },
-    { name: 'Transfer', value: periodSales.filter(s => s.paymentMethod === 'transfer').reduce((sum, s) => sum + s.total, 0), color: '#8B5CF6' },
+    { name: 'Cash', value: periodSales.filter(s => s.payment_method === 'cash').reduce((sum, s) => sum + s.total, 0), color: '#10B981' },
+    { name: 'Card', value: periodSales.filter(s => s.payment_method === 'card').reduce((sum, s) => sum + s.total, 0), color: '#3B82F6' },
+    { name: 'Transfer', value: periodSales.filter(s => s.payment_method === 'transfer').reduce((sum, s) => sum + s.total, 0), color: '#8B5CF6' },
   ].filter(p => p.value > 0);
 
   // Top selling products
   const productMap: Record<string, { name: string; qty: number; revenue: number; profit: number }> = {};
   periodSales.forEach(sale => {
     sale.items.forEach(item => {
-      const product = products.find(p => p.id === item.productId);
-      if (!productMap[item.productId]) {
-        productMap[item.productId] = { name: item.productName, qty: 0, revenue: 0, profit: 0 };
+      const product = products.find(p => p.id === item.product_id);
+      if (!productMap[item.product_id]) {
+        productMap[item.product_id] = { name: item.product_name, qty: 0, revenue: 0, profit: 0 };
       }
-      productMap[item.productId].qty += item.quantity;
-      productMap[item.productId].revenue += item.total;
+      productMap[item.product_id].qty += item.quantity;
+      productMap[item.product_id].revenue += item.total;
       if (product) {
-        productMap[item.productId].profit += (item.unitPrice - product.cost) * item.quantity;
+        productMap[item.product_id].profit += (item.unit_price - product.cost) * item.quantity;
       }
     });
   });
@@ -89,15 +86,15 @@ export default function Reports() {
   const handleExportCSV = () => {
     const headers = ['Date', 'Sale ID', 'Customer', 'Items', 'Subtotal', 'Tax', 'Discount', 'Total', 'Payment', 'Status'];
     const rows = periodSales.map(s => [
-      format(new Date(s.date), 'yyyy-MM-dd HH:mm'),
+      format(new Date(s.created_at), 'yyyy-MM-dd HH:mm'),
       s.id,
-      s.customerName,
+      s.customer_name,
       s.items.length,
       s.subtotal.toFixed(2),
       s.tax.toFixed(2),
       s.discount.toFixed(2),
       s.total.toFixed(2),
-      s.paymentMethod,
+      s.payment_method,
       s.status,
     ]);
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -107,7 +104,16 @@ export default function Reports() {
     a.href = url;
     a.download = `sales-report-${format(today, 'yyyy-MM-dd')}.csv`;
     a.click();
+    URL.revokeObjectURL(url);
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -138,41 +144,28 @@ export default function Reports() {
       {/* Key Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-2 mb-1">
-            <DollarSign className="w-4 h-4 text-green-500" />
-            <span className="text-xs text-gray-500">Total Revenue</span>
-          </div>
+          <p className="text-xs text-gray-500">Total Revenue</p>
           <p className="text-xl font-bold text-gray-800">${periodSales.reduce((s, sale) => s + sale.total, 0).toFixed(2)}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-4 h-4 text-blue-500" />
-            <span className="text-xs text-gray-500">Net Profit</span>
-          </div>
+          <p className="text-xs text-gray-500">Net Profit</p>
           <p className="text-xl font-bold text-gray-800">${profitData.profit.toFixed(2)}</p>
           <p className="text-xs text-green-600">Margin: {profitData.revenue > 0 ? ((profitData.profit / profitData.revenue) * 100).toFixed(1) : 0}%</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-2 mb-1">
-            <Package className="w-4 h-4 text-purple-500" />
-            <span className="text-xs text-gray-500">Items Sold</span>
-          </div>
+          <p className="text-xs text-gray-500">Items Sold</p>
           <p className="text-xl font-bold text-gray-800">
             {periodSales.reduce((s, sale) => s + sale.items.reduce((is, i) => is + i.quantity, 0), 0)}
           </p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-2 mb-1">
-            <Users className="w-4 h-4 text-orange-500" />
-            <span className="text-xs text-gray-500">Transactions</span>
-          </div>
+          <p className="text-xs text-gray-500">Transactions</p>
           <p className="text-xl font-bold text-gray-800">{periodSales.length}</p>
         </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Chart */}
         <div className="bg-white rounded-xl p-5 border border-gray-100">
           <h3 className="font-semibold text-gray-800 mb-4">Daily Revenue</h3>
           <ResponsiveContainer width="100%" height={250}>
@@ -186,7 +179,6 @@ export default function Reports() {
           </ResponsiveContainer>
         </div>
 
-        {/* Sales Volume */}
         <div className="bg-white rounded-xl p-5 border border-gray-100">
           <h3 className="font-semibold text-gray-800 mb-4">Sales Volume</h3>
           <ResponsiveContainer width="100%" height={250}>
@@ -201,7 +193,6 @@ export default function Reports() {
           </ResponsiveContainer>
         </div>
 
-        {/* Category Performance */}
         <div className="bg-white rounded-xl p-5 border border-gray-100">
           <h3 className="font-semibold text-gray-800 mb-4">Category Performance</h3>
           <div className="space-y-3">
@@ -223,7 +214,6 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Payment Breakdown */}
         <div className="bg-white rounded-xl p-5 border border-gray-100">
           <h3 className="font-semibold text-gray-800 mb-4">Payment Methods</h3>
           <div className="flex items-center gap-6">

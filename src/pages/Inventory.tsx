@@ -3,13 +3,13 @@ import { useData, Product } from '../store/DataContext';
 import { Plus, Search, Edit2, Trash2, X, AlertTriangle } from 'lucide-react';
 
 export default function Inventory() {
-  const { products, categories, addProduct, updateProduct, deleteProduct } = useData();
+  const { products, categories, addProduct, updateProduct, deleteProduct, loading } = useData();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
-    name: '', sku: '', category: '', price: 0, cost: 0, stock: 0, minStock: 0, description: ''
+    name: '', sku: '', category: '', price: 0, cost: 0, stock: 0, min_stock: 0, description: ''
   });
 
   const filteredProducts = products.filter(p => {
@@ -21,7 +21,7 @@ export default function Inventory() {
 
   const openAddModal = () => {
     setEditingProduct(null);
-    setFormData({ name: '', sku: '', category: categories[0]?.name || '', price: 0, cost: 0, stock: 0, minStock: 0, description: '' });
+    setFormData({ name: '', sku: '', category: categories[0]?.name || '', price: 0, cost: 0, stock: 0, min_stock: 0, description: '' });
     setShowModal(true);
   };
 
@@ -30,26 +30,34 @@ export default function Inventory() {
     setFormData({
       name: product.name, sku: product.sku, category: product.category,
       price: product.price, cost: product.cost, stock: product.stock,
-      minStock: product.minStock, description: product.description
+      min_stock: product.min_stock, description: product.description
     });
     setShowModal(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingProduct) {
-      updateProduct(editingProduct.id, formData);
+      await updateProduct(editingProduct.id, formData);
     } else {
-      addProduct(formData);
+      await addProduct(formData);
     }
     setShowModal(false);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
-      deleteProduct(id);
+      await deleteProduct(id);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -102,7 +110,7 @@ export default function Inventory() {
         </div>
         <div className="bg-white rounded-lg p-3 border border-gray-100">
           <p className="text-xs text-gray-500">Low Stock</p>
-          <p className="text-xl font-bold text-orange-600">{products.filter(p => p.stock <= p.minStock).length}</p>
+          <p className="text-xl font-bold text-orange-600">{products.filter(p => p.stock <= p.min_stock).length}</p>
         </div>
       </div>
 
@@ -141,7 +149,7 @@ export default function Inventory() {
                   <td className="py-3 px-4 text-right text-gray-600">${product.cost.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right font-medium">{product.stock}</td>
                   <td className="py-3 px-4 text-center">
-                    {product.stock <= product.minStock ? (
+                    {product.stock <= product.min_stock ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 rounded text-xs font-medium">
                         <AlertTriangle className="w-3 h-3" /> Low
                       </span>
@@ -258,8 +266,8 @@ export default function Inventory() {
                   <input
                     type="number"
                     required
-                    value={formData.minStock}
-                    onChange={(e) => setFormData({ ...formData, minStock: parseInt(e.target.value) })}
+                    value={formData.min_stock}
+                    onChange={(e) => setFormData({ ...formData, min_stock: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
