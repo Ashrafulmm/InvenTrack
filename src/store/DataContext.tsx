@@ -64,10 +64,88 @@ export interface Settings {
   steadfast_endpoint: string;
 }
 
+export interface Purchase {
+  id: string;
+  supplier: string;
+  invoice_number: string;
+  date: string;
+  items: { product_id: string; product_name: string; quantity: number; unit_cost: number; total: number }[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  payment_status: 'paid' | 'partial' | 'unpaid';
+  payment_method: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface Expense {
+  id: string;
+  category: string;
+  description: string;
+  amount: number;
+  date: string;
+  payment_method: string;
+  reference: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface StockTransfer {
+  id: string;
+  from_location: string;
+  to_location: string;
+  date: string;
+  items: { product_id: string; product_name: string; quantity: number }[];
+  status: 'pending' | 'completed' | 'cancelled';
+  notes: string;
+  created_at: string;
+}
+
+export interface StockAdjustment {
+  id: string;
+  product_id: string;
+  product_name: string;
+  previous_stock: number;
+  new_stock: number;
+  adjustment_type: 'increase' | 'decrease';
+  reason: string;
+  date: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface PaymentAccount {
+  id: string;
+  name: string;
+  type: 'bank' | 'mobile_banking' | 'cash' | 'card';
+  account_number: string;
+  bank_name: string;
+  balance: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'manager' | 'staff' | 'cashier';
+  permissions: string[];
+  is_active: boolean;
+  created_at: string;
+}
+
 interface DataContextType {
   products: Product[];
   sales: Sale[];
   categories: Category[];
+  purchases: Purchase[];
+  expenses: Expense[];
+  stockTransfers: StockTransfer[];
+  stockAdjustments: StockAdjustment[];
+  paymentAccounts: PaymentAccount[];
+  appUsers: AppUser[];
   settings: Settings;
   loading: boolean;
   addProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -77,6 +155,18 @@ interface DataContextType {
   updateSale: (id: string, sale: Partial<Sale>) => Promise<void>;
   addCategory: (category: Omit<Category, 'id' | 'created_at'>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  addPurchase: (purchase: Omit<Purchase, 'id' | 'created_at'>) => Promise<void>;
+  deletePurchase: (id: string) => Promise<void>;
+  addExpense: (expense: Omit<Expense, 'id' | 'created_at'>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
+  addStockTransfer: (transfer: Omit<StockTransfer, 'id' | 'created_at'>) => Promise<void>;
+  deleteStockTransfer: (id: string) => Promise<void>;
+  addStockAdjustment: (adjustment: Omit<StockAdjustment, 'id' | 'created_at'>) => Promise<void>;
+  deleteStockAdjustment: (id: string) => Promise<void>;
+  addPaymentAccount: (account: Omit<PaymentAccount, 'id' | 'created_at'>) => Promise<void>;
+  deletePaymentAccount: (id: string) => Promise<void>;
+  addAppUser: (user: Omit<AppUser, 'id' | 'created_at'>) => Promise<void>;
+  deleteAppUser: (id: string) => Promise<void>;
   updateSettings: (settings: Partial<Settings>) => Promise<void>;
   refreshData: () => Promise<void>;
 }
@@ -98,6 +188,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [stockTransfers, setStockTransfers] = useState<StockTransfer[]>([]);
+  const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>([]);
+  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
+  const [appUsers, setAppUsers] = useState<AppUser[]>([]);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [loading, setLoading] = useState(true);
 
@@ -179,6 +275,46 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setProducts(productsData);
       setCategories(categoriesData);
       setSales(transformedSales);
+
+      // Fetch purchases
+      try {
+        const { data: purchasesData, error } = await supabase.from('purchases').select('*, purchase_items(*)').order('created_at', { ascending: false });
+        if (!error && purchasesData) {
+          setPurchases(purchasesData.map((p: any) => ({ ...p, items: p.purchase_items || [] })));
+        }
+      } catch (err) { console.warn('Failed to fetch purchases:', err); }
+
+      // Fetch expenses
+      try {
+        const { data: expensesData, error } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
+        if (!error) setExpenses(expensesData || []);
+      } catch (err) { console.warn('Failed to fetch expenses:', err); }
+
+      // Fetch stock transfers
+      try {
+        const { data: transfersData, error } = await supabase.from('stock_transfers').select('*, stock_transfer_items(*)').order('created_at', { ascending: false });
+        if (!error && transfersData) {
+          setStockTransfers(transfersData.map((t: any) => ({ ...t, items: t.stock_transfer_items || [] })));
+        }
+      } catch (err) { console.warn('Failed to fetch stock transfers:', err); }
+
+      // Fetch stock adjustments
+      try {
+        const { data: adjustmentsData, error } = await supabase.from('stock_adjustments').select('*').order('created_at', { ascending: false });
+        if (!error) setStockAdjustments(adjustmentsData || []);
+      } catch (err) { console.warn('Failed to fetch stock adjustments:', err); }
+
+      // Fetch payment accounts
+      try {
+        const { data: accountsData, error } = await supabase.from('payment_accounts').select('*').order('created_at', { ascending: false });
+        if (!error) setPaymentAccounts(accountsData || []);
+      } catch (err) { console.warn('Failed to fetch payment accounts:', err); }
+
+      // Fetch app users
+      try {
+        const { data: usersData, error } = await supabase.from('app_users').select('*').order('created_at', { ascending: false });
+        if (!error) setAppUsers(usersData || []);
+      } catch (err) { console.warn('Failed to fetch app users:', err); }
 
       // Load settings from localStorage
       try {
@@ -369,12 +505,195 @@ export function DataProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('app_settings', JSON.stringify(updated));
   };
 
+  // Purchase CRUD
+  const addPurchase = async (purchase: Omit<Purchase, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase.from('purchases').insert([{
+        supplier: purchase.supplier,
+        invoice_number: purchase.invoice_number,
+        date: purchase.date,
+        subtotal: purchase.subtotal,
+        tax: purchase.tax,
+        total: purchase.total,
+        payment_status: purchase.payment_status,
+        payment_method: purchase.payment_method,
+        notes: purchase.notes,
+      }]).select().single();
+      if (error) throw error;
+
+      if (purchase.items.length > 0) {
+        await supabase.from('purchase_items').insert(purchase.items.map(item => ({
+          purchase_id: data.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit_cost: item.unit_cost,
+          total: item.total,
+        })));
+      }
+
+      // Update stock
+      for (const item of purchase.items) {
+        const product = products.find(p => p.id === item.product_id);
+        if (product) {
+          await updateProduct(item.product_id, { stock: product.stock + item.quantity, cost: item.unit_cost });
+        }
+      }
+
+      setPurchases(prev => [{ ...data, items: purchase.items }, ...prev]);
+    } catch (err: any) {
+      console.error('Failed to add purchase:', err);
+      alert('Failed to add purchase: ' + err.message);
+    }
+  };
+
+  const deletePurchase = async (id: string) => {
+    try {
+      const { error } = await supabase.from('purchases').delete().eq('id', id);
+      if (error) throw error;
+      setPurchases(prev => prev.filter(p => p.id !== id));
+    } catch (err: any) {
+      alert('Failed to delete purchase: ' + err.message);
+    }
+  };
+
+  // Expense CRUD
+  const addExpense = async (expense: Omit<Expense, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase.from('expenses').insert([expense]).select().single();
+      if (error) throw error;
+      setExpenses(prev => [data, ...prev]);
+    } catch (err: any) {
+      alert('Failed to add expense: ' + err.message);
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    try {
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if (error) throw error;
+      setExpenses(prev => prev.filter(e => e.id !== id));
+    } catch (err: any) {
+      alert('Failed to delete expense: ' + err.message);
+    }
+  };
+
+  // Stock Transfer CRUD
+  const addStockTransfer = async (transfer: Omit<StockTransfer, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase.from('stock_transfers').insert([{
+        from_location: transfer.from_location,
+        to_location: transfer.to_location,
+        date: transfer.date,
+        status: transfer.status,
+        notes: transfer.notes,
+      }]).select().single();
+      if (error) throw error;
+
+      if (transfer.items.length > 0) {
+        await supabase.from('stock_transfer_items').insert(transfer.items.map(item => ({
+          transfer_id: data.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+        })));
+      }
+
+      setStockTransfers(prev => [{ ...data, items: transfer.items }, ...prev]);
+    } catch (err: any) {
+      alert('Failed to add stock transfer: ' + err.message);
+    }
+  };
+
+  const deleteStockTransfer = async (id: string) => {
+    try {
+      const { error } = await supabase.from('stock_transfers').delete().eq('id', id);
+      if (error) throw error;
+      setStockTransfers(prev => prev.filter(t => t.id !== id));
+    } catch (err: any) {
+      alert('Failed to delete stock transfer: ' + err.message);
+    }
+  };
+
+  // Stock Adjustment CRUD
+  const addStockAdjustment = async (adjustment: Omit<StockAdjustment, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase.from('stock_adjustments').insert([adjustment]).select().single();
+      if (error) throw error;
+
+      // Update product stock
+      await updateProduct(adjustment.product_id, { stock: adjustment.new_stock });
+
+      setStockAdjustments(prev => [data, ...prev]);
+    } catch (err: any) {
+      alert('Failed to add stock adjustment: ' + err.message);
+    }
+  };
+
+  const deleteStockAdjustment = async (id: string) => {
+    try {
+      const { error } = await supabase.from('stock_adjustments').delete().eq('id', id);
+      if (error) throw error;
+      setStockAdjustments(prev => prev.filter(a => a.id !== id));
+    } catch (err: any) {
+      alert('Failed to delete stock adjustment: ' + err.message);
+    }
+  };
+
+  // Payment Account CRUD
+  const addPaymentAccount = async (account: Omit<PaymentAccount, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase.from('payment_accounts').insert([account]).select().single();
+      if (error) throw error;
+      setPaymentAccounts(prev => [data, ...prev]);
+    } catch (err: any) {
+      alert('Failed to add payment account: ' + err.message);
+    }
+  };
+
+  const deletePaymentAccount = async (id: string) => {
+    try {
+      const { error } = await supabase.from('payment_accounts').delete().eq('id', id);
+      if (error) throw error;
+      setPaymentAccounts(prev => prev.filter(a => a.id !== id));
+    } catch (err: any) {
+      alert('Failed to delete payment account: ' + err.message);
+    }
+  };
+
+  // App User CRUD
+  const addAppUser = async (user: Omit<AppUser, 'id' | 'created_at'>) => {
+    try {
+      const { data, error } = await supabase.from('app_users').insert([user]).select().single();
+      if (error) throw error;
+      setAppUsers(prev => [data, ...prev]);
+    } catch (err: any) {
+      alert('Failed to add user: ' + err.message);
+    }
+  };
+
+  const deleteAppUser = async (id: string) => {
+    try {
+      const { error } = await supabase.from('app_users').delete().eq('id', id);
+      if (error) throw error;
+      setAppUsers(prev => prev.filter(u => u.id !== id));
+    } catch (err: any) {
+      alert('Failed to delete user: ' + err.message);
+    }
+  };
+
   return (
     <DataContext.Provider value={{
-      products, sales, categories, settings, loading,
+      products, sales, categories, purchases, expenses, stockTransfers, stockAdjustments, paymentAccounts, appUsers, settings, loading,
       addProduct, updateProduct, deleteProduct,
       addSale, updateSale,
       addCategory, deleteCategory,
+      addPurchase, deletePurchase,
+      addExpense, deleteExpense,
+      addStockTransfer, deleteStockTransfer,
+      addStockAdjustment, deleteStockAdjustment,
+      addPaymentAccount, deletePaymentAccount,
+      addAppUser, deleteAppUser,
       updateSettings, refreshData,
     }}>
       {children}
