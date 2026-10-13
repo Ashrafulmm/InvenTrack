@@ -24,18 +24,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
-    const savedUser = localStorage.getItem('auth_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
+    // Check for existing session in localStorage
+    try {
+      const savedUser = localStorage.getItem('auth_user');
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+      }
+    } catch (error) {
+      console.error('Error reading auth from localStorage:', error);
+      localStorage.removeItem('auth_user');
     }
-    setLoading(false);
+    
+    // Set loading to false after a short delay to ensure UI renders
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { error: error.message };
+      if (error) {
+        console.error('Login error:', error);
+        return { error: error.message };
+      }
       
       const userData: User = {
         id: data.user.id,
@@ -47,7 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('auth_user', JSON.stringify(userData));
       return {};
     } catch (err: any) {
-      return { error: err.message || 'Login failed' };
+      console.error('Login exception:', err);
+      return { error: err.message || 'Login failed. Please try again.' };
     }
   };
 
@@ -58,7 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: { data: { name } }
       });
-      if (error) return { error: error.message };
+      
+      if (error) {
+        console.error('Registration error:', error);
+        return { error: error.message };
+      }
 
       const userData: User = {
         id: data.user?.id || '',
@@ -70,14 +90,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('auth_user', JSON.stringify(userData));
       return {};
     } catch (err: any) {
-      return { error: err.message || 'Registration failed' };
+      console.error('Registration exception:', err);
+      return { error: err.message || 'Registration failed. Please try again.' };
     }
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('auth_user');
-    supabase.auth.signOut();
+    try {
+      setUser(null);
+      localStorage.removeItem('auth_user');
+      supabase.auth.signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear local state even if Supabase signout fails
+      setUser(null);
+      localStorage.removeItem('auth_user');
+    }
   };
 
   const skipLogin = () => {
@@ -100,6 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
   return context;
 }
