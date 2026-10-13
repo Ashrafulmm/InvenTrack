@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useData, Purchase } from '../store/DataContext';
 import { Plus, Search, Trash2, X, Package } from 'lucide-react';
+import SearchableProductSelect from '../components/SearchableProductSelect';
 
 export default function Purchases() {
   const { products, purchases, settings, addPurchase, deletePurchase } = useData();
@@ -177,10 +178,15 @@ export default function Purchases() {
               <div className="border-t pt-4">
                 <h4 className="font-medium text-gray-800 mb-3">Add Items</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <select value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="sm:col-span-2 px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                    <option value="">Select product...</option>
-                    {products.map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>)}
-                  </select>
+                  <div className="sm:col-span-2">
+                    <SearchableProductSelect
+                      products={products}
+                      value={selectedProduct}
+                      onChange={setSelectedProduct}
+                      currencySymbol={sym}
+                      placeholder="Search product by name or SKU..."
+                    />
+                  </div>
                   <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 0)} placeholder="Qty" className="px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                   <input type="number" min="0" step="0.01" value={unitCost} onChange={(e) => setUnitCost(parseFloat(e.target.value) || 0)} placeholder="Cost" className="px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                 </div>

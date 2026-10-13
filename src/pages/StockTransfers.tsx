@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useData, StockTransfer } from '../store/DataContext';
 import { Plus, Search, Trash2, X, ArrowRightLeft } from 'lucide-react';
+import SearchableProductSelect from '../components/SearchableProductSelect';
 
 export default function StockTransfers() {
   const { products, stockTransfers, addStockTransfer, deleteStockTransfer } = useData();
@@ -156,10 +157,16 @@ export default function StockTransfers() {
               <div className="border-t pt-4">
                 <h4 className="font-medium text-gray-800 mb-3">Add Items</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <select value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="sm:col-span-2 px-3 py-2 border border-gray-200 rounded-lg text-sm">
-                    <option value="">Select product...</option>
-                    {products.filter(p => p.stock > 0).map(p => <option key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</option>)}
-                  </select>
+                  <div className="sm:col-span-2">
+                    <SearchableProductSelect
+                      products={products}
+                      value={selectedProduct}
+                      onChange={setSelectedProduct}
+                      currencySymbol="৳"
+                      onlyInStock={true}
+                      placeholder="Search product by name or SKU..."
+                    />
+                  </div>
                   <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 0)} placeholder="Qty" className="px-3 py-2 border border-gray-200 rounded-lg text-sm" />
                 </div>
                 <button type="button" onClick={addItem} disabled={!selectedProduct || quantity <= 0} className="mt-2 flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">

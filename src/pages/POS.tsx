@@ -80,16 +80,26 @@ export default function POS() {
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder="Search products..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+            <input type="text" placeholder="Search products by name or SKU..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" />
+            {search && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
+                {filteredProducts.length} found
+              </div>
+            )}
           </div>
           <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm">
-            <option value="">All</option>
+            <option value="">All Categories</option>
             {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
           </select>
         </div>
 
         <div className="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 content-start">
-          {filteredProducts.map(product => (
+          {filteredProducts.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-gray-500">
+              <ShoppingCart className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No products found matching "{search}"</p>
+            </div>
+          ) : filteredProducts.map(product => (
             <button key={product.id} onClick={() => addToCart(product.id)} className="bg-white border border-gray-100 rounded-xl p-3 text-left hover:border-blue-300 hover:shadow-md transition-all group">
               <div className="w-full h-14 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg mb-2 flex items-center justify-center">
                 <ShoppingCart className="w-5 h-5 text-blue-400 group-hover:text-blue-600 transition-colors" />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useData, SaleItem } from '../store/DataContext';
 import { Plus, Trash2, CheckCircle, Truck, Percent } from 'lucide-react';
+import SearchableProductSelect from '../components/SearchableProductSelect';
 
 export default function AddSale() {
   const { products, addSale, settings } = useData();
@@ -68,12 +69,16 @@ export default function AddSale() {
         <div className="bg-white rounded-xl border border-gray-100 p-5">
           <h3 className="font-semibold text-gray-800 mb-4">Add Items</h3>
           <div className="flex flex-col sm:flex-row gap-3">
-            <select value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-              <option value="">Select a product...</option>
-              {products.filter(p => p.stock > 0).map(p => (
-                <option key={p.id} value={p.id}>{p.name} ({p.sku}) - {sym}{p.price.toFixed(2)} - Stock: {p.stock}</option>
-              ))}
-            </select>
+            <div className="flex-1">
+              <SearchableProductSelect
+                products={products}
+                value={selectedProduct}
+                onChange={setSelectedProduct}
+                currencySymbol={sym}
+                onlyInStock={true}
+                placeholder="Search product by name or SKU..."
+              />
+            </div>
             <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 1)} className="w-24 px-3 py-2.5 border border-gray-200 rounded-lg text-sm" placeholder="Qty" />
             <button type="button" onClick={addItem} disabled={!selectedProduct} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
               <Plus className="w-4 h-4" />Add
