@@ -20,40 +20,36 @@ import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
 } from 'recharts';
 import { format, subDays, startOfDay } from 'date-fns';
 
 export default function Dashboard() {
-  const { products, sales, categories } = useData();
+  const { products, sales, categories, loading } = useData();
 
   const today = startOfDay(new Date());
   const last7Days = subDays(today, 7);
   const last30Days = subDays(today, 30);
 
-  const todaySales = sales.filter(s => new Date(s.date) >= today && s.status === 'completed');
-  const weekSales = sales.filter(s => new Date(s.date) >= last7Days && s.status === 'completed');
-  const monthSales = sales.filter(s => new Date(s.date) >= last30Days && s.status === 'completed');
+  const todaySales = sales.filter(s => startOfDay(new Date(s.created_at)) >= today && s.status === 'completed');
+  const weekSales = sales.filter(s => startOfDay(new Date(s.created_at)) >= last7Days && s.status === 'completed');
+  const monthSales = sales.filter(s => startOfDay(new Date(s.created_at)) >= last30Days && s.status === 'completed');
 
   const todayRevenue = todaySales.reduce((sum, s) => sum + s.total, 0);
-  const weekRevenue = weekSales.reduce((sum, s) => sum + s.total, 0);
   const monthRevenue = monthSales.reduce((sum, s) => sum + s.total, 0);
 
   const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
-  const lowStockProducts = products.filter(p => p.stock <= p.minStock);
+  const lowStockProducts = products.filter(p => p.stock <= p.min_stock);
 
   // Revenue chart data (last 30 days)
   const revenueData = Array.from({ length: 30 }, (_, i) => {
     const date = subDays(today, 29 - i);
     const daySales = sales.filter(s => {
-      const saleDate = startOfDay(new Date(s.date));
+      const saleDate = startOfDay(new Date(s.created_at));
       return saleDate.getTime() === date.getTime() && s.status === 'completed';
     });
     return {
       date: format(date, 'MMM dd'),
       revenue: daySales.reduce((sum, s) => sum + s.total, 0),
-      sales: daySales.length,
     };
   });
 
@@ -68,23 +64,16 @@ export default function Dashboard() {
   const productSalesMap: Record<string, { name: string; quantity: number; revenue: number }> = {};
   monthSales.forEach(sale => {
     sale.items.forEach(item => {
-      if (!productSalesMap[item.productId]) {
-        productSalesMap[item.productId] = { name: item.productName, quantity: 0, revenue: 0 };
+      if (!productSalesMap[item.product_id]) {
+        productSalesMap[item.product_id] = { name: item.product_name, quantity: 0, revenue: 0 };
       }
-      productSalesMap[item.productId].quantity += item.quantity;
-      productSalesMap[item.productId].revenue += item.total;
+      productSalesMap[item.product_id].quantity += item.quantity;
+      productSalesMap[item.product_id].revenue += item.total;
     });
   });
   const topProducts = Object.values(productSalesMap)
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5);
-
-  // Payment method distribution
-  const paymentData = [
-    { name: 'Cash', value: monthSales.filter(s => s.paymentMethod === 'cash').length, color: '#10B981' },
-    { name: 'Card', value: monthSales.filter(s => s.paymentMethod === 'card').length, color: '#3B82F6' },
-    { name: 'Transfer', value: monthSales.filter(s => s.paymentMethod === 'transfer').length, color: '#8B5CF6' },
-  ].filter(p => p.value > 0);
 
   const statCards = [
     {
@@ -120,6 +109,14 @@ export default function Dashboard() {
       color: 'bg-orange-500',
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -260,7 +257,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-orange-600">{product.stock} left</p>
-                  <p className="text-xs text-gray-500">Min: {product.minStock}</p>
+                  <p className="text-xs text-gray-500">Min: {product.min_stock}</p>
                 </div>
               </div>
             ))}
@@ -290,10 +287,10 @@ export default function Dashboard() {
               {sales.slice(0, 5).map((sale) => (
                 <tr key={sale.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="py-2.5 px-3 font-mono text-xs">{sale.id.slice(-8)}</td>
-                  <td className="py-2.5 px-3">{sale.customerName}</td>
+                  <td className="py-2.5 px-3">{sale.customer_name}</td>
                   <td className="py-2.5 px-3">{sale.items.length} items</td>
                   <td className="py-2.5 px-3">
-                    <span className="capitalize px-2 py-0.5 bg-gray-100 rounded text-xs">{sale.paymentMethod}</span>
+                    <span className="capitalize px-2 py-0.5 bg-gray-100 rounded text-xs">{sale.payment_method}</span>
                   </td>
                   <td className="py-2.5 px-3 font-semibold">${sale.total.toFixed(2)}</td>
                   <td className="py-2.5 px-3">

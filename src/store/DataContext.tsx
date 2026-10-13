@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
 
 export interface Product {
   id: string;
@@ -8,17 +9,19 @@ export interface Product {
   price: number;
   cost: number;
   stock: number;
-  minStock: number;
+  min_stock: number;
   description: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SaleItem {
-  productId: string;
-  productName: string;
+  id?: string;
+  sale_id?: string;
+  product_id: string;
+  product_name: string;
   quantity: number;
-  unitPrice: number;
+  unit_price: number;
   total: number;
 }
 
@@ -29,187 +32,227 @@ export interface Sale {
   tax: number;
   discount: number;
   total: number;
-  paymentMethod: 'cash' | 'card' | 'transfer';
-  customerName: string;
-  date: string;
+  payment_method: 'cash' | 'card' | 'transfer';
+  customer_name: string;
   status: 'completed' | 'pending' | 'cancelled';
+  created_at: string;
 }
 
 export interface Category {
   id: string;
   name: string;
   color: string;
+  created_at?: string;
 }
 
 interface DataContextType {
   products: Product[];
   sales: Sale[];
   categories: Category[];
-  addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateProduct: (id: string, product: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
-  addSale: (sale: Omit<Sale, 'id' | 'date'>) => void;
-  updateSale: (id: string, sale: Partial<Sale>) => void;
-  addCategory: (category: Omit<Category, 'id'>) => void;
-  deleteCategory: (id: string) => void;
+  loading: boolean;
+  addProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  addSale: (sale: Omit<Sale, 'id' | 'created_at'>) => Promise<void>;
+  updateSale: (id: string, sale: Partial<Sale>) => Promise<void>;
+  addCategory: (category: Omit<Category, 'id' | 'created_at'>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const defaultCategories: Category[] = [
-  { id: '1', name: 'Electronics', color: '#3B82F6' },
-  { id: '2', name: 'Clothing', color: '#10B981' },
-  { id: '3', name: 'Food & Beverages', color: '#F59E0B' },
-  { id: '4', name: 'Office Supplies', color: '#8B5CF6' },
-  { id: '5', name: 'Home & Garden', color: '#EF4444' },
-  { id: '6', name: 'Health & Beauty', color: '#EC4899' },
-];
-
-const defaultProducts: Product[] = [
-  { id: '1', name: 'Wireless Mouse', sku: 'ELC-001', category: 'Electronics', price: 29.99, cost: 15.00, stock: 150, minStock: 20, description: 'Ergonomic wireless mouse', createdAt: '2024-01-15', updatedAt: '2024-01-15' },
-  { id: '2', name: 'USB-C Cable', sku: 'ELC-002', category: 'Electronics', price: 12.99, cost: 4.50, stock: 300, minStock: 50, description: '6ft USB-C charging cable', createdAt: '2024-01-16', updatedAt: '2024-01-16' },
-  { id: '3', name: 'Cotton T-Shirt', sku: 'CLT-001', category: 'Clothing', price: 24.99, cost: 8.00, stock: 200, minStock: 30, description: 'Premium cotton t-shirt', createdAt: '2024-01-17', updatedAt: '2024-01-17' },
-  { id: '4', name: 'Notebook A5', sku: 'OFS-001', category: 'Office Supplies', price: 5.99, cost: 2.00, stock: 500, minStock: 100, description: 'A5 lined notebook', createdAt: '2024-01-18', updatedAt: '2024-01-18' },
-  { id: '5', name: 'Bluetooth Speaker', sku: 'ELC-003', category: 'Electronics', price: 49.99, cost: 22.00, stock: 75, minStock: 15, description: 'Portable bluetooth speaker', createdAt: '2024-01-19', updatedAt: '2024-01-19' },
-  { id: '6', name: 'Coffee Beans 1kg', sku: 'FNB-001', category: 'Food & Beverages', price: 18.99, cost: 9.00, stock: 120, minStock: 25, description: 'Premium arabica coffee beans', createdAt: '2024-01-20', updatedAt: '2024-01-20' },
-  { id: '7', name: 'Desk Lamp', sku: 'HMG-001', category: 'Home & Garden', price: 34.99, cost: 14.00, stock: 60, minStock: 10, description: 'LED desk lamp with dimmer', createdAt: '2024-01-21', updatedAt: '2024-01-21' },
-  { id: '8', name: 'Hand Cream', sku: 'HLB-001', category: 'Health & Beauty', price: 14.99, cost: 5.00, stock: 180, minStock: 30, description: 'Moisturizing hand cream 100ml', createdAt: '2024-01-22', updatedAt: '2024-01-22' },
-  { id: '9', name: 'Mechanical Keyboard', sku: 'ELC-004', category: 'Electronics', price: 89.99, cost: 40.00, stock: 45, minStock: 10, description: 'RGB mechanical keyboard', createdAt: '2024-01-23', updatedAt: '2024-01-23' },
-  { id: '10', name: 'Yoga Mat', sku: 'HMG-002', category: 'Home & Garden', price: 29.99, cost: 12.00, stock: 80, minStock: 15, description: 'Non-slip yoga mat', createdAt: '2024-01-24', updatedAt: '2024-01-24' },
-];
-
-const generateSales = (): Sale[] => {
-  const sales: Sale[] = [];
-  const paymentMethods: ('cash' | 'card' | 'transfer')[] = ['cash', 'card', 'transfer'];
-  const statuses: ('completed' | 'pending' | 'cancelled')[] = ['completed', 'completed', 'completed', 'completed', 'pending', 'cancelled'];
-  
-  for (let i = 0; i < 50; i++) {
-    const numItems = Math.floor(Math.random() * 4) + 1;
-    const items: SaleItem[] = [];
-    let subtotal = 0;
-    
-    for (let j = 0; j < numItems; j++) {
-      const product = defaultProducts[Math.floor(Math.random() * defaultProducts.length)];
-      const quantity = Math.floor(Math.random() * 5) + 1;
-      const total = product.price * quantity;
-      subtotal += total;
-      items.push({
-        productId: product.id,
-        productName: product.name,
-        quantity,
-        unitPrice: product.price,
-        total,
-      });
-    }
-    
-    const tax = subtotal * 0.08;
-    const discount = Math.random() > 0.7 ? subtotal * 0.1 : 0;
-    const total = subtotal + tax - discount;
-    
-    const daysAgo = Math.floor(Math.random() * 90);
-    const date = new Date();
-    date.setDate(date.getDate() - daysAgo);
-    
-    sales.push({
-      id: `sale-${i + 1}`,
-      items,
-      subtotal,
-      tax,
-      discount,
-      total,
-      paymentMethod: paymentMethods[Math.floor(Math.random() * paymentMethods.length)],
-      customerName: `Customer ${i + 1}`,
-      date: date.toISOString(),
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-    });
-  }
-  
-  return sales.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-};
-
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('inventory_products');
-    return saved ? JSON.parse(saved) : defaultProducts;
-  });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [sales, setSales] = useState<Sale[]>(() => {
-    const saved = localStorage.getItem('inventory_sales');
-    return saved ? JSON.parse(saved) : generateSales();
-  });
+  // Fetch all data from Supabase
+  const refreshData = async () => {
+    setLoading(true);
+    try {
+      // Fetch products
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem('inventory_categories');
-    return saved ? JSON.parse(saved) : defaultCategories;
-  });
+      if (productsError) throw productsError;
 
-  useEffect(() => {
-    localStorage.setItem('inventory_products', JSON.stringify(products));
-  }, [products]);
+      // Fetch categories
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .order('created_at', { ascending: true });
 
-  useEffect(() => {
-    localStorage.setItem('inventory_sales', JSON.stringify(sales));
-  }, [sales]);
+      if (categoriesError) throw categoriesError;
 
-  useEffect(() => {
-    localStorage.setItem('inventory_categories', JSON.stringify(categories));
-  }, [categories]);
+      // Fetch sales with items
+      const { data: salesData, error: salesError } = await supabase
+        .from('sales')
+        .select('*, sale_items(*)')
+        .order('created_at', { ascending: false });
 
-  const addProduct = (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const now = new Date().toISOString().split('T')[0];
-    const newProduct: Product = {
-      ...product,
-      id: Date.now().toString(),
-      createdAt: now,
-      updatedAt: now,
-    };
-    setProducts(prev => [...prev, newProduct]);
+      if (salesError) throw salesError;
+
+      // Transform sales data to include items array
+      const transformedSales: Sale[] = (salesData || []).map(sale => ({
+        id: sale.id,
+        items: sale.sale_items || [],
+        subtotal: sale.subtotal,
+        tax: sale.tax,
+        discount: sale.discount,
+        total: sale.total,
+        payment_method: sale.payment_method,
+        customer_name: sale.customer_name,
+        status: sale.status,
+        created_at: sale.created_at,
+      }));
+
+      setProducts(productsData || []);
+      setCategories(categoriesData || []);
+      setSales(transformedSales);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateProduct = (id: string, updates: Partial<Product>) => {
+  useEffect(() => {
+    refreshData();
+  }, []);
+
+  const addProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
+    const { data, error } = await supabase
+      .from('products')
+      .insert([product])
+      .select()
+      .single();
+
+    if (error) throw error;
+    
+    setProducts(prev => [data, ...prev]);
+  };
+
+  const updateProduct = async (id: string, updates: Partial<Product>) => {
+    const { error } = await supabase
+      .from('products')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
+
     setProducts(prev => prev.map(p => 
-      p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString().split('T')[0] } : p
+      p.id === id ? { ...p, ...updates, updated_at: new Date().toISOString() } : p
     ));
   };
 
-  const deleteProduct = (id: string) => {
+  const deleteProduct = async (id: string) => {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
     setProducts(prev => prev.filter(p => p.id !== id));
   };
 
-  const addSale = (sale: Omit<Sale, 'id' | 'date'>) => {
+  const addSale = async (sale: Omit<Sale, 'id' | 'created_at'>) => {
+    // Insert sale first
+    const { data: saleData, error: saleError } = await supabase
+      .from('sales')
+      .insert([{
+        subtotal: sale.subtotal,
+        tax: sale.tax,
+        discount: sale.discount,
+        total: sale.total,
+        payment_method: sale.payment_method,
+        customer_name: sale.customer_name,
+        status: sale.status,
+      }])
+      .select()
+      .single();
+
+    if (saleError) throw saleError;
+
+    // Insert sale items
+    if (sale.items.length > 0) {
+      const saleItems = sale.items.map(item => ({
+        sale_id: saleData.id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total: item.total,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('sale_items')
+        .insert(saleItems);
+
+      if (itemsError) throw itemsError;
+    }
+
+    // Update stock for each product
+    for (const item of sale.items) {
+      const product = products.find(p => p.id === item.product_id);
+      if (product) {
+        await updateProduct(item.product_id, { stock: product.stock - item.quantity });
+      }
+    }
+
+    // Add to local state
     const newSale: Sale = {
-      ...sale,
-      id: `sale-${Date.now()}`,
-      date: new Date().toISOString(),
+      ...saleData,
+      items: sale.items,
     };
     setSales(prev => [newSale, ...prev]);
-    
-    // Update stock
-    sale.items.forEach(item => {
-      setProducts(prev => prev.map(p => 
-        p.id === item.productId ? { ...p, stock: p.stock - item.quantity, updatedAt: new Date().toISOString().split('T')[0] } : p
-      ));
-    });
   };
 
-  const updateSale = (id: string, updates: Partial<Sale>) => {
+  const updateSale = async (id: string, updates: Partial<Sale>) => {
+    const { error } = await supabase
+      .from('sales')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) throw error;
+
     setSales(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   };
 
-  const addCategory = (category: Omit<Category, 'id'>) => {
-    setCategories(prev => [...prev, { ...category, id: Date.now().toString() }]);
+  const addCategory = async (category: Omit<Category, 'id' | 'created_at'>) => {
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([category])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    setCategories(prev => [...prev, data]);
   };
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = async (id: string) => {
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
     setCategories(prev => prev.filter(c => c.id !== id));
   };
 
   return (
     <DataContext.Provider value={{
-      products, sales, categories,
+      products, sales, categories, loading,
       addProduct, updateProduct, deleteProduct,
       addSale, updateSale,
       addCategory, deleteCategory,
+      refreshData,
     }}>
       {children}
     </DataContext.Provider>
