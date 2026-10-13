@@ -104,28 +104,58 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const refreshData = async () => {
     setLoading(true);
     try {
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Fetch products
+      let productsData: Product[] = [];
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.warn('Products table not found or error:', error.message);
+        } else {
+          productsData = data || [];
+        }
+      } catch (err) {
+        console.warn('Failed to fetch products:', err);
+      }
 
-      if (productsError) console.error('Products error:', productsError);
+      // Fetch categories
+      let categoriesData: Category[] = [];
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .order('created_at', { ascending: true });
+        
+        if (error) {
+          console.warn('Categories table not found or error:', error.message);
+        } else {
+          categoriesData = data || [];
+        }
+      } catch (err) {
+        console.warn('Failed to fetch categories:', err);
+      }
 
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .order('created_at', { ascending: true });
+      // Fetch sales with items
+      let salesData: any[] = [];
+      try {
+        const { data, error } = await supabase
+          .from('sales')
+          .select('*, sale_items(*)')
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.warn('Sales table not found or error:', error.message);
+        } else {
+          salesData = data || [];
+        }
+      } catch (err) {
+        console.warn('Failed to fetch sales:', err);
+      }
 
-      if (categoriesError) console.error('Categories error:', categoriesError);
-
-      const { data: salesData, error: salesError } = await supabase
-        .from('sales')
-        .select('*, sale_items(*)')
-        .order('created_at', { ascending: false });
-
-      if (salesError) console.error('Sales error:', salesError);
-
-      const transformedSales: Sale[] = (salesData || []).map(sale => ({
+      const transformedSales: Sale[] = salesData.map(sale => ({
         id: sale.id,
         items: sale.sale_items || [],
         subtotal: sale.subtotal,
@@ -146,17 +176,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
         created_at: sale.created_at,
       }));
 
-      setProducts(productsData || []);
-      setCategories(categoriesData || []);
+      setProducts(productsData);
+      setCategories(categoriesData);
       setSales(transformedSales);
 
       // Load settings from localStorage
-      const savedSettings = localStorage.getItem('app_settings');
-      if (savedSettings) {
-        setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
+      try {
+        const savedSettings = localStorage.getItem('app_settings');
+        if (savedSettings) {
+          setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
+        }
+      } catch (err) {
+        console.warn('Failed to load settings:', err);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Critical error in refreshData:', error);
     } finally {
       setLoading(false);
     }
@@ -167,101 +201,166 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addProduct = async (product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
-    const { data, error } = await supabase
-      .from('products')
-      .insert([product])
-      .select()
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert([product])
+        .select()
+        .single();
 
-    if (error) throw error;
-    setProducts(prev => [data, ...prev]);
+      if (error) {
+        console.error('Failed to add product:', error);
+        alert('Failed to add product: ' + error.message);
+        return;
+      }
+      setProducts(prev => [data, ...prev]);
+    } catch (err) {
+      console.error('Exception adding product:', err);
+      alert('Failed to add product. Please check your database connection.');
+    }
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
-    const { error } = await supabase
-      .from('products')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id);
 
-    if (error) throw error;
-    setProducts(prev => prev.map(p => 
-      p.id === id ? { ...p, ...updates, updated_at: new Date().toISOString() } : p
-    ));
+      if (error) {
+        console.error('Failed to update product:', error);
+        alert('Failed to update product: ' + error.message);
+        return;
+      }
+      setProducts(prev => prev.map(p => 
+        p.id === id ? { ...p, ...updates, updated_at: new Date().toISOString() } : p
+      ));
+    } catch (err) {
+      console.error('Exception updating product:', err);
+      alert('Failed to update product.');
+    }
   };
 
   const deleteProduct = async (id: string) => {
-    const { error } = await supabase.from('products').delete().eq('id', id);
-    if (error) throw error;
-    setProducts(prev => prev.filter(p => p.id !== id));
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) {
+        console.error('Failed to delete product:', error);
+        alert('Failed to delete product: ' + error.message);
+        return;
+      }
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      console.error('Exception deleting product:', err);
+      alert('Failed to delete product.');
+    }
   };
 
   const addSale = async (sale: Omit<Sale, 'id' | 'created_at'>) => {
-    const { data: saleData, error: saleError } = await supabase
-      .from('sales')
-      .insert([{
-        subtotal: sale.subtotal,
-        discount_type: sale.discount_type,
-        discount_value: sale.discount_value,
-        discount: sale.discount,
-        delivery_charge: sale.delivery_charge,
-        tax: sale.tax,
-        total: sale.total,
-        payment_method: sale.payment_method,
-        customer_name: sale.customer_name,
-        customer_phone: sale.customer_phone,
-        delivery_address: sale.delivery_address,
-        courier_service: sale.courier_service,
-        tracking_id: sale.tracking_id,
-        status: sale.status,
-        notes: sale.notes,
-      }])
-      .select()
-      .single();
+    try {
+      const { data: saleData, error: saleError } = await supabase
+        .from('sales')
+        .insert([{
+          subtotal: sale.subtotal,
+          discount_type: sale.discount_type,
+          discount_value: sale.discount_value,
+          discount: sale.discount,
+          delivery_charge: sale.delivery_charge,
+          tax: sale.tax,
+          total: sale.total,
+          payment_method: sale.payment_method,
+          customer_name: sale.customer_name,
+          customer_phone: sale.customer_phone,
+          delivery_address: sale.delivery_address,
+          courier_service: sale.courier_service,
+          tracking_id: sale.tracking_id,
+          status: sale.status,
+          notes: sale.notes,
+        }])
+        .select()
+        .single();
 
-    if (saleError) throw saleError;
-
-    if (sale.items.length > 0) {
-      const saleItems = sale.items.map(item => ({
-        sale_id: saleData.id,
-        product_id: item.product_id,
-        product_name: item.product_name,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total: item.total,
-      }));
-
-      const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
-      if (itemsError) throw itemsError;
-    }
-
-    // Update stock
-    for (const item of sale.items) {
-      const product = products.find(p => p.id === item.product_id);
-      if (product) {
-        await updateProduct(item.product_id, { stock: product.stock - item.quantity });
+      if (saleError) {
+        console.error('Failed to add sale:', saleError);
+        alert('Failed to record sale: ' + saleError.message);
+        return;
       }
-    }
 
-    const newSale: Sale = { ...saleData, items: sale.items };
-    setSales(prev => [newSale, ...prev]);
+      if (sale.items.length > 0) {
+        const saleItems = sale.items.map(item => ({
+          sale_id: saleData.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total: item.total,
+        }));
+
+        const { error: itemsError } = await supabase.from('sale_items').insert(saleItems);
+        if (itemsError) {
+          console.error('Failed to add sale items:', itemsError);
+        }
+      }
+
+      // Update stock
+      for (const item of sale.items) {
+        const product = products.find(p => p.id === item.product_id);
+        if (product) {
+          await updateProduct(item.product_id, { stock: product.stock - item.quantity });
+        }
+      }
+
+      const newSale: Sale = { ...saleData, items: sale.items };
+      setSales(prev => [newSale, ...prev]);
+    } catch (err) {
+      console.error('Exception adding sale:', err);
+      alert('Failed to record sale. Please check your database connection.');
+    }
   };
 
   const updateSale = async (id: string, updates: Partial<Sale>) => {
-    const { error } = await supabase.from('sales').update(updates).eq('id', id);
-    if (error) throw error;
-    setSales(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    try {
+      const { error } = await supabase.from('sales').update(updates).eq('id', id);
+      if (error) {
+        console.error('Failed to update sale:', error);
+        alert('Failed to update sale: ' + error.message);
+        return;
+      }
+      setSales(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    } catch (err) {
+      console.error('Exception updating sale:', err);
+      alert('Failed to update sale.');
+    }
   };
 
   const addCategory = async (category: Omit<Category, 'id' | 'created_at'>) => {
-    const { data, error } = await supabase.from('categories').insert([category]).select().single();
-    if (error) throw error;
-    setCategories(prev => [...prev, data]);
+    try {
+      const { data, error } = await supabase.from('categories').insert([category]).select().single();
+      if (error) {
+        console.error('Failed to add category:', error);
+        alert('Failed to add category: ' + error.message);
+        return;
+      }
+      setCategories(prev => [...prev, data]);
+    } catch (err) {
+      console.error('Exception adding category:', err);
+      alert('Failed to add category.');
+    }
   };
 
   const deleteCategory = async (id: string) => {
-    const { error } = await supabase.from('categories').delete().eq('id', id);
-    if (error) throw error;
-    setCategories(prev => prev.filter(c => c.id !== id));
+    try {
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (error) {
+        console.error('Failed to delete category:', error);
+        alert('Failed to delete category: ' + error.message);
+        return;
+      }
+      setCategories(prev => prev.filter(c => c.id !== id));
+    } catch (err) {
+      console.error('Exception deleting category:', err);
+      alert('Failed to delete category.');
+    }
   };
 
   const updateSettings = async (newSettings: Partial<Settings>) => {
