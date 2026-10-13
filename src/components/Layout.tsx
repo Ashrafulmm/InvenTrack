@@ -4,20 +4,27 @@ import { useAuth } from '../store/AuthContext';
 import { useData } from '../store/DataContext';
 import {
   LayoutDashboard, Package, ShoppingCart, Receipt, BarChart3, FileText,
-  Settings, Menu, X, PlusCircle, Boxes, LogOut, User,
+  Settings, Menu, X, PlusCircle, Boxes, LogOut, User, ShoppingBag,
+  DollarSign, ArrowRightLeft, Sliders, CreditCard, Users,
 } from 'lucide-react';
 
 interface LayoutProps { children: React.ReactNode; }
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/inventory', label: 'Inventory', icon: Package },
+  { path: '/inventory', label: 'Products', icon: Package },
+  { path: '/purchases', label: 'Purchases', icon: ShoppingBag },
+  { path: '/expenses', label: 'Expenses', icon: DollarSign },
+  { path: '/stock-transfers', label: 'Stock Transfers', icon: ArrowRightLeft },
+  { path: '/stock-adjustments', label: 'Stock Adjustments', icon: Sliders },
   { path: '/pos', label: 'Point of Sale', icon: ShoppingCart },
   { path: '/add-sale', label: 'Add Sale', icon: PlusCircle },
   { path: '/sales', label: 'Sales History', icon: Receipt },
+  { path: '/payment-accounts', label: 'Payment Accounts', icon: CreditCard },
   { path: '/reports', label: 'Reports', icon: FileText },
   { path: '/statistics', label: 'Statistics', icon: BarChart3 },
   { path: '/categories', label: 'Categories', icon: Boxes },
+  { path: '/users', label: 'User Management', icon: Users },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 

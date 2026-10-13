@@ -6,6 +6,12 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
+import Purchases from './pages/Purchases';
+import Expenses from './pages/Expenses';
+import StockTransfers from './pages/StockTransfers';
+import StockAdjustments from './pages/StockAdjustments';
+import PaymentAccounts from './pages/PaymentAccounts';
+import UserManagement from './pages/UserManagement';
 import POS from './pages/POS';
 import AddSale from './pages/AddSale';
 import Sales from './pages/Sales';
@@ -100,6 +106,12 @@ function AppRoutes() {
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
         <Route path="/inventory" element={<ProtectedRoute><Layout><Inventory /></Layout></ProtectedRoute>} />
+        <Route path="/purchases" element={<ProtectedRoute><Layout><Purchases /></Layout></ProtectedRoute>} />
+        <Route path="/expenses" element={<ProtectedRoute><Layout><Expenses /></Layout></ProtectedRoute>} />
+        <Route path="/stock-transfers" element={<ProtectedRoute><Layout><StockTransfers /></Layout></ProtectedRoute>} />
+        <Route path="/stock-adjustments" element={<ProtectedRoute><Layout><StockAdjustments /></Layout></ProtectedRoute>} />
+        <Route path="/payment-accounts" element={<ProtectedRoute><Layout><PaymentAccounts /></Layout></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute><Layout><UserManagement /></Layout></ProtectedRoute>} />
         <Route path="/pos" element={<ProtectedRoute><Layout><POS /></Layout></ProtectedRoute>} />
         <Route path="/add-sale" element={<ProtectedRoute><Layout><AddSale /></Layout></ProtectedRoute>} />
         <Route path="/sales" element={<ProtectedRoute><Layout><Sales /></Layout></ProtectedRoute>} />
