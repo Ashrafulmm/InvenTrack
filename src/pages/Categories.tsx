@@ -3,7 +3,8 @@ import { useData } from '../store/DataContext';
 import { Plus, Trash2, X, Package } from 'lucide-react';
 
 export default function Categories() {
-  const { categories, products, addCategory, deleteCategory, loading } = useData();
+  const { categories, products, settings, addCategory, deleteCategory, loading } = useData();
+  const sym = settings.currency_symbol;
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#3B82F6');
@@ -73,7 +74,7 @@ export default function Categories() {
               <div className="mt-4 pt-3 border-t border-gray-100">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Retail Value</span>
-                  <span className="font-medium text-gray-800">${totalValue.toFixed(2)}</span>
+                  <span className="font-medium text-gray-800">{sym}{totalValue.toFixed(2)}</span>
                 </div>
               </div>
               <div className="mt-2">

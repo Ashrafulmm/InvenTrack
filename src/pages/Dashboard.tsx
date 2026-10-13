@@ -24,7 +24,8 @@ import {
 import { format, subDays, startOfDay } from 'date-fns';
 
 export default function Dashboard() {
-  const { products, sales, categories, loading } = useData();
+  const { products, sales, categories, settings, loading } = useData();
+  const sym = settings.currency_symbol;
 
   const today = startOfDay(new Date());
   const last7Days = subDays(today, 7);
@@ -78,7 +79,7 @@ export default function Dashboard() {
   const statCards = [
     {
       title: 'Today\'s Revenue',
-      value: `$${todayRevenue.toFixed(2)}`,
+      value: `${sym}${todayRevenue.toFixed(2)}`,
       change: '+12.5%',
       positive: true,
       icon: DollarSign,
@@ -95,7 +96,7 @@ export default function Dashboard() {
     {
       title: 'Monthly Sales',
       value: monthSales.length.toString(),
-      change: `$${monthRevenue.toFixed(2)}`,
+      change: `${sym}${monthRevenue.toFixed(2)}`,
       positive: true,
       icon: ShoppingCart,
       color: 'bg-purple-500',
@@ -171,7 +172,7 @@ export default function Dashboard() {
               <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']}
+                formatter={(value: number) => [`${sym}${value.toFixed(2)}`, 'Revenue']}
               />
               <Area
                 type="monotone"
@@ -236,7 +237,7 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-500">{product.quantity} units sold</p>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-gray-800">${product.revenue.toFixed(2)}</span>
+                <span className="text-sm font-semibold text-gray-800">{sym}{product.revenue.toFixed(2)}</span>
               </div>
             ))}
             {topProducts.length === 0 && (
@@ -292,7 +293,7 @@ export default function Dashboard() {
                   <td className="py-2.5 px-3">
                     <span className="capitalize px-2 py-0.5 bg-gray-100 rounded text-xs">{sale.payment_method}</span>
                   </td>
-                  <td className="py-2.5 px-3 font-semibold">${sale.total.toFixed(2)}</td>
+                  <td className="py-2.5 px-3 font-semibold">{sym}{sale.total.toFixed(2)}</td>
                   <td className="py-2.5 px-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                       sale.status === 'completed' ? 'bg-green-100 text-green-700' :

@@ -3,7 +3,8 @@ import { useData, Product } from '../store/DataContext';
 import { Plus, Search, Edit2, Trash2, X, AlertTriangle } from 'lucide-react';
 
 export default function Inventory() {
-  const { products, categories, addProduct, updateProduct, deleteProduct, loading } = useData();
+  const { products, categories, settings, addProduct, updateProduct, deleteProduct, loading } = useData();
+  const sym = settings.currency_symbol;
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -106,7 +107,7 @@ export default function Inventory() {
         </div>
         <div className="bg-white rounded-lg p-3 border border-gray-100">
           <p className="text-xs text-gray-500">Stock Value</p>
-          <p className="text-xl font-bold text-gray-800">${(products.reduce((s, p) => s + p.cost * p.stock, 0)).toFixed(0)}</p>
+          <p className="text-xl font-bold text-gray-800">{sym}{(products.reduce((s, p) => s + p.cost * p.stock, 0)).toFixed(0)}</p>
         </div>
         <div className="bg-white rounded-lg p-3 border border-gray-100">
           <p className="text-xs text-gray-500">Low Stock</p>
@@ -145,8 +146,8 @@ export default function Inventory() {
                       {product.category}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right font-medium">${product.price.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-gray-600">${product.cost.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right font-medium">{sym}{product.price.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-gray-600">{sym}{product.cost.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right font-medium">{product.stock}</td>
                   <td className="py-3 px-4 text-center">
                     {product.stock <= product.min_stock ? (

@@ -4,7 +4,8 @@ import { Search, Eye, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function Sales() {
-  const { sales, loading } = useData();
+  const { sales, settings, loading } = useData();
+  const sym = settings.currency_symbol;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
@@ -90,7 +91,7 @@ export default function Sales() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-white rounded-lg p-4 border border-gray-100">
           <p className="text-xs text-gray-500">Total Revenue</p>
-          <p className="text-xl font-bold text-green-600">${totalRevenue.toFixed(2)}</p>
+          <p className="text-xl font-bold text-green-600">{sym}{totalRevenue.toFixed(2)}</p>
         </div>
         <div className="bg-white rounded-lg p-4 border border-gray-100">
           <p className="text-xs text-gray-500">Completed Sales</p>
@@ -98,7 +99,7 @@ export default function Sales() {
         </div>
         <div className="bg-white rounded-lg p-4 border border-gray-100">
           <p className="text-xs text-gray-500">Average Sale</p>
-          <p className="text-xl font-bold text-purple-600">${avgSale.toFixed(2)}</p>
+          <p className="text-xl font-bold text-purple-600">{sym}{avgSale.toFixed(2)}</p>
         </div>
       </div>
 
@@ -128,7 +129,7 @@ export default function Sales() {
                   <td className="py-3 px-4">
                     <span className="capitalize px-2 py-0.5 bg-gray-100 rounded text-xs">{sale.payment_method}</span>
                   </td>
-                  <td className="py-3 px-4 text-right font-semibold">${sale.total.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right font-semibold">{sym}{sale.total.toFixed(2)}</td>
                   <td className="py-3 px-4 text-center">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                       sale.status === 'completed' ? 'bg-green-100 text-green-700' :
@@ -204,8 +205,8 @@ export default function Sales() {
                       <tr key={idx} className="border-b border-gray-50">
                         <td className="py-2">{item.product_name}</td>
                         <td className="py-2 text-right">{item.quantity}</td>
-                        <td className="py-2 text-right">${item.unit_price.toFixed(2)}</td>
-                        <td className="py-2 text-right font-medium">${item.total.toFixed(2)}</td>
+                        <td className="py-2 text-right">{sym}{item.unit_price.toFixed(2)}</td>
+                        <td className="py-2 text-right font-medium">{sym}{item.total.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -215,21 +216,21 @@ export default function Sales() {
               <div className="border-t pt-3 space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Subtotal</span>
-                  <span>${saleDetail.subtotal.toFixed(2)}</span>
+                  <span>{sym}{saleDetail.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tax</span>
-                  <span>${saleDetail.tax.toFixed(2)}</span>
+                  <span>{sym}{saleDetail.tax.toFixed(2)}</span>
                 </div>
                 {saleDetail.discount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount</span>
-                    <span>-${saleDetail.discount.toFixed(2)}</span>
+                    <span>-{sym}{saleDetail.discount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-lg pt-2 border-t">
                   <span>Total</span>
-                  <span className="text-blue-600">${saleDetail.total.toFixed(2)}</span>
+                  <span className="text-blue-600">{sym}{saleDetail.total.toFixed(2)}</span>
                 </div>
               </div>
 

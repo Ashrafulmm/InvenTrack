@@ -8,7 +8,8 @@ import {
 import { Download } from 'lucide-react';
 
 export default function Reports() {
-  const { products, sales, categories, loading } = useData();
+  const { products, sales, categories, settings, loading } = useData();
+  const sym = settings.currency_symbol;
   const [period, setPeriod] = useState<'7' | '30' | '90'>('30');
 
   const today = startOfDay(new Date());
@@ -145,11 +146,11 @@ export default function Reports() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 border border-gray-100">
           <p className="text-xs text-gray-500">Total Revenue</p>
-          <p className="text-xl font-bold text-gray-800">${periodSales.reduce((s, sale) => s + sale.total, 0).toFixed(2)}</p>
+          <p className="text-xl font-bold text-gray-800">{sym}{periodSales.reduce((s, sale) => s + sale.total, 0).toFixed(2)}</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-100">
           <p className="text-xs text-gray-500">Net Profit</p>
-          <p className="text-xl font-bold text-gray-800">${profitData.profit.toFixed(2)}</p>
+          <p className="text-xl font-bold text-gray-800">{sym}{profitData.profit.toFixed(2)}</p>
           <p className="text-xs text-green-600">Margin: {profitData.revenue > 0 ? ((profitData.profit / profitData.revenue) * 100).toFixed(1) : 0}%</p>
         </div>
         <div className="bg-white rounded-xl p-4 border border-gray-100">
@@ -173,7 +174,7 @@ export default function Reports() {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, 'Revenue']} />
+              <Tooltip formatter={(value: number) => [`${sym}${value.toFixed(2)}`, 'Revenue']} />
               <Bar dataKey="revenue" fill="#3B82F6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -203,7 +204,7 @@ export default function Reports() {
                 <div key={idx}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="font-medium text-gray-700">{cat.name}</span>
-                    <span className="text-gray-600">${cat.revenue.toFixed(2)}</span>
+                    <span className="text-gray-600">{sym}{cat.revenue.toFixed(2)}</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2">
                     <div className="h-2 rounded-full transition-all" style={{ width: `${width}%`, backgroundColor: cat.color }}></div>
@@ -232,7 +233,7 @@ export default function Reports() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, '']} />
+                <Tooltip formatter={(value: number) => [`${sym}${value.toFixed(2)}`, '']} />
               </PieChart>
             </ResponsiveContainer>
             <div className="space-y-3">
@@ -241,7 +242,7 @@ export default function Reports() {
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }}></div>
                   <div>
                     <p className="text-sm font-medium text-gray-700">{p.name}</p>
-                    <p className="text-xs text-gray-500">${p.value.toFixed(2)}</p>
+                    <p className="text-xs text-gray-500">{sym}{p.value.toFixed(2)}</p>
                   </div>
                 </div>
               ))}
@@ -273,8 +274,8 @@ export default function Reports() {
                   <td className="py-3 px-4 text-gray-500">{idx + 1}</td>
                   <td className="py-3 px-4 font-medium">{product.name}</td>
                   <td className="py-3 px-4 text-right">{product.qty}</td>
-                  <td className="py-3 px-4 text-right font-medium">${product.revenue.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right text-green-600">${product.profit.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right font-medium">{sym}{product.revenue.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right text-green-600">{sym}{product.profit.toFixed(2)}</td>
                   <td className="py-3 px-4 text-right">
                     <span className="text-green-600 font-medium">
                       {product.revenue > 0 ? ((product.profit / product.revenue) * 100).toFixed(1) : 0}%
@@ -293,15 +294,15 @@ export default function Reports() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-blue-50 rounded-lg p-4">
             <p className="text-sm text-blue-600">Cost Value</p>
-            <p className="text-2xl font-bold text-blue-800">${inventoryValue.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-blue-800">{sym}{inventoryValue.toFixed(2)}</p>
           </div>
           <div className="bg-green-50 rounded-lg p-4">
             <p className="text-sm text-green-600">Retail Value</p>
-            <p className="text-2xl font-bold text-green-800">${retailValue.toFixed(2)}</p>
+            <p className="text-2xl font-bold text-green-800">{sym}{retailValue.toFixed(2)}</p>
           </div>
           <div className="bg-purple-50 rounded-lg p-4">
             <p className="text-sm text-purple-600">Potential Profit</p>
-            <p className="text-2xl font-bold text-purple-800">${(retailValue - inventoryValue).toFixed(2)}</p>
+            <p className="text-2xl font-bold text-purple-800">{sym}{(retailValue - inventoryValue).toFixed(2)}</p>
           </div>
         </div>
       </div>

@@ -8,7 +8,8 @@ import {
 } from 'recharts';
 
 export default function Statistics() {
-  const { products, sales, categories, loading } = useData();
+  const { products, sales, categories, settings, loading } = useData();
+  const sym = settings.currency_symbol;
   const [view, setView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
   const completedSales = sales.filter(s => s.status === 'completed');
@@ -183,7 +184,7 @@ export default function Statistics() {
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="label" tick={{ fontSize: 10 }} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, '']} />
+            <Tooltip formatter={(value: number) => [`${sym}${value.toFixed(2)}`, '']} />
             <Legend />
             <Area type="monotone" dataKey="revenue" stroke="#3B82F6" fill="url(#colorRev)" name="Revenue" />
             <Area type="monotone" dataKey="profit" stroke="#10B981" fill="url(#colorProf)" name="Profit" />
