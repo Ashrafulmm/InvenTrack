@@ -166,6 +166,10 @@ export default function Settings() {
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <p className="text-sm text-green-700"><strong>Connected to Supabase</strong></p>
             </div>
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-500 mb-1">Project URL</p>
+              <p className="text-sm font-mono text-gray-700 break-all">https://fphzlpdrfuomgatwblec.supabase.co</p>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-4">
