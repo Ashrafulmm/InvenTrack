@@ -14,7 +14,6 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ error?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ error?: string }>;
   logout: () => void;
-  skipLogin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,24 +23,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session in localStorage
-    try {
-      const savedUser = localStorage.getItem('auth_user');
-      if (savedUser) {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
+    // Verify session with Supabase and localStorage
+    const checkSession = async () => {
+      try {
+        // First check Supabase session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session && session.user) {
+          // Valid Supabase session exists
+          const userData: User = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+            role: 'admin',
+          };
+          setUser(userData);
+          localStorage.setItem('auth_user', JSON.stringify(userData));
+        } else {
+          // No valid Supabase session, clear localStorage
+          localStorage.removeItem('auth_user');
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+        localStorage.removeItem('auth_user');
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error reading auth from localStorage:', error);
-      localStorage.removeItem('auth_user');
-    }
-    
-    // Set loading to false after a short delay to ensure UI renders
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 100);
+    };
 
-    return () => clearTimeout(timer);
+    checkSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        localStorage.removeItem('auth_user');
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        const userData: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          role: 'admin',
+        };
+        setUser(userData);
+        localStorage.setItem('auth_user', JSON.stringify(userData));
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -108,19 +141,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const skipLogin = () => {
-    const guestUser: User = {
-      id: 'guest',
-      email: 'guest@inventrack.local',
-      name: 'Guest User',
-      role: 'staff',
-    };
-    setUser(guestUser);
-    localStorage.setItem('auth_user', JSON.stringify(guestUser));
-  };
-
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, skipLogin }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

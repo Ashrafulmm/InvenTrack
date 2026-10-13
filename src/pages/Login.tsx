@@ -3,7 +3,7 @@ import { useAuth } from '../store/AuthContext';
 import { Package, Mail, Lock, User, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
 export default function Login() {
-  const { login, register, skipLogin } = useAuth();
+  const { login, register } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -138,17 +138,13 @@ export default function Login() {
             </button>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <button
-              onClick={skipLogin}
-              className="w-full py-3 bg-white/5 border border-white/20 text-blue-200 rounded-xl font-medium hover:bg-white/10 hover:text-white transition"
-            >
-              Continue as Guest →
-            </button>
-            <p className="text-xs text-blue-300/60 text-center mt-2">
-              Browse the dashboard without an account
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <p className="text-xs text-blue-300/50 text-center flex items-center justify-center gap-1">
+              <Lock className="w-3 h-3" />
+              Authentication required to access inventory data
             </p>
           </div>
+
         </div>
 
         <p className="text-center text-blue-300/50 text-xs mt-6">
