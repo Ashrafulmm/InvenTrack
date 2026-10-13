@@ -1,23 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { useData } from '../store/DataContext';
-import { Plus, Edit2, Trash2, X, Users, Shield, UserCheck, UserX } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-
-export interface AppUser {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'manager' | 'staff' | 'cashier';
-  permissions: string[];
-  is_active: boolean;
-  created_at: string;
-}
+import React, { useState } from 'react';
+import { useData, AppUser } from '../store/DataContext';
+import { Plus, Trash2, X, Users, Shield, UserCheck, UserX } from 'lucide-react';
 
 export default function UserManagement() {
-  const { settings } = useData();
-  const [users, setUsers] = useState<AppUser[]>([]);
+  const { appUsers, addAppUser, deleteAppUser } = useData();
   const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    name: '',
+    role: 'staff' as 'admin' | 'manager' | 'staff' | 'cashier',
+    permissions: [] as string[],
+    is_active: true,
+  });
 
   const roles = [
     { value: 'admin', label: 'Admin', description: 'Full access to all features' },
@@ -38,53 +32,39 @@ export default function UserManagement() {
     'manage_expenses',
   ];
 
-  const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.is_active).length;
-  const adminCount = users.filter(u => u.role === 'admin').length;
+  const totalUsers = appUsers.length;
+  const activeUsers = appUsers.filter(u => u.is_active).length;
+  const adminCount = appUsers.filter(u => u.role === 'admin').length;
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      // For now, we'll use a mock list since we haven't created the users table yet
-      // In production, this would fetch from Supabase
-      const mockUsers: AppUser[] = [
-        {
-          id: '1',
-          email: 'admin@inventrack.com',
-          name: 'Admin User',
-          role: 'admin',
-          permissions: permissionOptions,
-          is_active: true,
-          created_at: new Date().toISOString(),
-        },
-      ];
-      setUsers(mockUsers);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setLoading(false);
-    }
+  const togglePermission = (perm: string) => {
+    setFormData({
+      ...formData,
+      permissions: formData.permissions.includes(perm)
+        ? formData.permissions.filter(p => p !== perm)
+        : [...formData.permissions, perm],
+    });
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email || !formData.name) {
+      alert('Please fill all required fields');
+      return;
+    }
+    await addAppUser(formData);
+    setShowModal(false);
+    setFormData({ email: '', name: '', role: 'staff', permissions: [], is_active: true });
+  };
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <p className="text-gray-600">Manage users and their permissions</p>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" />
-          Add User
+        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+          <Plus className="w-4 h-4" />Add User
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg p-4 border border-gray-100">
           <p className="text-sm text-gray-500">Total Users</p>
@@ -100,16 +80,6 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Info Box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
-          <strong>Note:</strong> User management requires creating a users table in Supabase. 
-          For now, this shows the current authenticated user. To enable full user management, 
-          run the SQL script provided in the setup guide.
-        </p>
-      </div>
-
-      {/* Users Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -124,15 +94,15 @@ export default function UserManagement() {
               </tr>
             </thead>
             <tbody>
-              {users.length === 0 ? (
+              {appUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-gray-500">
                     <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>No users found.</p>
+                    <p>No users yet. Click "Add User" to create one.</p>
                   </td>
                 </tr>
               ) : (
-                users.map(user => (
+                appUsers.map(user => (
                   <tr key={user.id} className="border-t border-gray-50 hover:bg-gray-50">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
@@ -167,17 +137,10 @@ export default function UserManagement() {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded">
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        {user.email !== 'admin@inventrack.com' && (
-                          <button className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+                    <td className="py-3 px-4 text-center">
+                      <button onClick={() => { if (confirm('Delete this user?')) deleteAppUser(user.id); }} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -187,11 +150,9 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Roles Info */}
       <div className="bg-white rounded-xl border border-gray-100 p-5">
         <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Shield className="w-5 h-5 text-blue-600" />
-          Role Permissions
+          <Shield className="w-5 h-5 text-blue-600" />Role Permissions
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {roles.map(role => (
@@ -203,20 +164,52 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
               <h3 className="font-semibold text-lg">Add User</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-4">
-              <p className="text-gray-600 text-center py-8">User management form coming soon...</p>
-              <p className="text-sm text-gray-500 text-center">This feature will allow you to create and manage users with different roles and permissions.</p>
-            </div>
+            <form onSubmit={handleSubmit} className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as any })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                  {roles.map(role => <option key={role.value} value={role.value}>{role.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Permissions</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {permissionOptions.map(perm => (
+                    <label key={perm} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={formData.permissions.includes(perm)} onChange={() => togglePermission(perm)} className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm text-gray-700 capitalize">{perm.replace('_', ' ')}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-gray-700">Active</span>
+                </label>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Save User</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

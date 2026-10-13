@@ -138,6 +138,9 @@ export default function Inventory() {
                     <div>
                       <p className="font-medium text-gray-800">{product.name}</p>
                       <p className="text-xs text-gray-500">{product.description}</p>
+                      <p className="text-xs font-semibold text-blue-600 mt-1">
+                        Stock Value: {sym}{(product.cost * product.stock).toFixed(2)}
+                      </p>
                     </div>
                   </td>
                   <td className="py-3 px-4 font-mono text-xs text-gray-600">{product.sku}</td>
