@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useData, StockAdjustment } from '../store/DataContext';
 import { Plus, Search, Trash2, X, Settings } from 'lucide-react';
+import SearchableProductSelect from '../components/SearchableProductSelect';
 
 export default function StockAdjustments() {
   const { products, stockAdjustments, addStockAdjustment, deleteStockAdjustment } = useData();
@@ -146,10 +147,13 @@ export default function StockAdjustments() {
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Product *</label>
-                <select value={formData.product_id} onChange={(e) => handleProductSelect(e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" required>
-                  <option value="">Select product...</option>
-                  {products.map(p => <option key={p.id} value={p.id}>{p.name} (Current Stock: {p.stock})</option>)}
-                </select>
+                <SearchableProductSelect
+                  products={products}
+                  value={formData.product_id}
+                  onChange={handleProductSelect}
+                  currencySymbol="৳"
+                  placeholder="Search product by name or SKU..."
+                />
               </div>
               {formData.product_id && (
                 <div className="bg-blue-50 rounded-lg p-3">
