@@ -72,6 +72,7 @@ export interface Purchase {
   items: { product_id: string; product_name: string; quantity: number; unit_cost: number; total: number }[];
   subtotal: number;
   tax: number;
+  delivery_charge: number;
   total: number;
   payment_status: 'paid' | 'partial' | 'unpaid';
   payment_method: string;
@@ -514,6 +515,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         date: purchase.date,
         subtotal: purchase.subtotal,
         tax: purchase.tax,
+        delivery_charge: purchase.delivery_charge,
         total: purchase.total,
         payment_status: purchase.payment_status,
         payment_method: purchase.payment_method,

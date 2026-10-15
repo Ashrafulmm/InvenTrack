@@ -21,6 +21,7 @@ export default function Purchases() {
     invoice_number: '',
     date: new Date().toISOString().split('T')[0],
     items: [] as PurchaseItem[],
+    delivery_charge: 0,
     payment_status: 'unpaid' as 'paid' | 'partial' | 'unpaid',
     payment_method: 'cash',
     notes: '',
@@ -87,7 +88,8 @@ export default function Purchases() {
     });
   };
 
-  const total = formData.items.reduce((sum, item) => sum + item.total, 0);
+  const itemsTotal = formData.items.reduce((sum, item) => sum + item.total, 0);
+  const grandTotal = itemsTotal + formData.delivery_charge;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,13 +98,14 @@ export default function Purchases() {
       return;
     }
 
-    await addPurchase({ ...formData, subtotal: total, tax: 0, total });
+    await addPurchase({ ...formData, subtotal: itemsTotal, tax: 0, delivery_charge: formData.delivery_charge, total: grandTotal });
     setShowModal(false);
     setFormData({
       supplier: '',
       invoice_number: '',
       date: new Date().toISOString().split('T')[0],
       items: [],
+      delivery_charge: 0,
       payment_status: 'unpaid',
       payment_method: 'cash',
       notes: '',
@@ -426,12 +429,30 @@ export default function Purchases() {
                         ))}
                       </tbody>
                       <tfoot className="bg-gray-50 font-medium">
-                        <tr className="bg-blue-50">
+                        <tr>
+                          <td colSpan={3} className="py-2 px-4 text-right text-gray-600">
+                            Items Total:
+                          </td>
+                          <td className="py-2 px-4 text-right font-medium">
+                            {sym}{itemsTotal.toFixed(2)}
+                          </td>
+                          <td></td>
+                        </tr>
+                        <tr>
+                          <td colSpan={3} className="py-2 px-4 text-right text-gray-600">
+                            Delivery Charge:
+                          </td>
+                          <td className="py-2 px-4 text-right font-medium">
+                            {sym}{formData.delivery_charge.toFixed(2)}
+                          </td>
+                          <td></td>
+                        </tr>
+                        <tr className="bg-blue-50 border-t-2 border-blue-200">
                           <td colSpan={3} className="py-3 px-4 text-right font-bold text-base">
                             Grand Total:
                           </td>
                           <td className="py-3 px-4 text-right font-bold text-blue-600 text-lg">
-                            {sym}{total.toFixed(2)}
+                            {sym}{grandTotal.toFixed(2)}
                           </td>
                           <td></td>
                         </tr>
@@ -449,6 +470,30 @@ export default function Purchases() {
                   </div>
                 </div>
               )}
+
+              {/* Delivery Charge */}
+              <div className="border-t pt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Delivery Charge ({sym})
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.delivery_charge}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      delivery_charge: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Optional: Add delivery/transport charges for this purchase
+                </p>
+              </div>
 
               {/* Payment Info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
@@ -507,7 +552,7 @@ export default function Purchases() {
                   type="submit"
                   className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
                 >
-                  Save Purchase — {sym}{total.toFixed(2)}
+                  Save Purchase — {sym}{grandTotal.toFixed(2)}
                 </button>
               </div>
             </form>
