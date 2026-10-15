@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { useData, Purchase } from '../store/DataContext';
-import { Plus, Search, Trash2, X, Package } from 'lucide-react';
+import { Plus, Search, Trash2, X, Package, Edit3 } from 'lucide-react';
 import SearchableProductSelect from '../components/SearchableProductSelect';
+
+interface PurchaseItem {
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  unit_cost: number;
+  total: number;
+}
 
 export default function Purchases() {
   const { products, purchases, settings, addPurchase, deletePurchase } = useData();
@@ -12,14 +20,12 @@ export default function Purchases() {
     supplier: '',
     invoice_number: '',
     date: new Date().toISOString().split('T')[0],
-    items: [] as { product_id: string; product_name: string; quantity: number; unit_cost: number; total: number }[],
+    items: [] as PurchaseItem[],
     payment_status: 'unpaid' as 'paid' | 'partial' | 'unpaid',
     payment_method: 'cash',
     notes: '',
   });
   const [selectedProduct, setSelectedProduct] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [unitCost, setUnitCost] = useState(0);
 
   const filteredPurchases = purchases.filter(p =>
     p.supplier.toLowerCase().includes(search.toLowerCase()) ||
@@ -32,29 +38,56 @@ export default function Purchases() {
 
   const addItem = () => {
     const product = products.find(p => p.id === selectedProduct);
-    if (!product || quantity <= 0 || unitCost <= 0) return;
+    if (!product) return;
 
-    const newItem = {
+    // Check if already in list
+    const existing = formData.items.find(i => i.product_id === selectedProduct);
+    if (existing) {
+      setSelectedProduct('');
+      return;
+    }
+
+    const newItem: PurchaseItem = {
       product_id: product.id,
       product_name: product.name,
-      quantity,
-      unit_cost: unitCost,
-      total: quantity * unitCost,
+      quantity: 1,
+      unit_cost: product.cost,
+      total: product.cost,
     };
 
     setFormData({ ...formData, items: [...formData.items, newItem] });
     setSelectedProduct('');
-    setQuantity(1);
-    setUnitCost(0);
   };
 
-  const removeItem = (index: number) => {
-    setFormData({ ...formData, items: formData.items.filter((_, i) => i !== index) });
+  const removeItem = (productId: string) => {
+    setFormData({ ...formData, items: formData.items.filter(i => i.product_id !== productId) });
   };
 
-  const subtotal = formData.items.reduce((sum, item) => sum + item.total, 0);
-  const tax = subtotal * 0.05;
-  const total = subtotal + tax;
+  const updateItemQuantity = (productId: string, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    setFormData({
+      ...formData,
+      items: formData.items.map(item =>
+        item.product_id === productId
+          ? { ...item, quantity: newQuantity, total: newQuantity * item.unit_cost }
+          : item
+      ),
+    });
+  };
+
+  const updateItemCost = (productId: string, newCost: number) => {
+    if (newCost < 0) return;
+    setFormData({
+      ...formData,
+      items: formData.items.map(item =>
+        item.product_id === productId
+          ? { ...item, unit_cost: newCost, total: item.quantity * newCost }
+          : item
+      ),
+    });
+  };
+
+  const total = formData.items.reduce((sum, item) => sum + item.total, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +96,7 @@ export default function Purchases() {
       return;
     }
 
-    await addPurchase({ ...formData, subtotal, tax, total });
+    await addPurchase({ ...formData, subtotal: total, tax: 0, total });
     setShowModal(false);
     setFormData({
       supplier: '',
@@ -81,10 +114,20 @@ export default function Purchases() {
       <div className="flex flex-col sm:flex-row gap-3 justify-between">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="Search purchases..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm" />
+          <input
+            type="text"
+            placeholder="Search purchases..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm"
+          />
         </div>
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-          <Plus className="w-4 h-4" />New Purchase
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+        >
+          <Plus className="w-4 h-4" />
+          New Purchase
         </button>
       </div>
 
@@ -129,18 +172,35 @@ export default function Purchases() {
               ) : (
                 filteredPurchases.map(purchase => (
                   <tr key={purchase.id} className="border-t border-gray-50 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-600">{new Date(purchase.date).toLocaleDateString()}</td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {new Date(purchase.date).toLocaleDateString()}
+                    </td>
                     <td className="py-3 px-4 font-mono text-xs">{purchase.invoice_number}</td>
                     <td className="py-3 px-4 font-medium">{purchase.supplier}</td>
                     <td className="py-3 px-4 text-center">{purchase.items.length}</td>
-                    <td className="py-3 px-4 text-right font-semibold">{sym}{purchase.total.toFixed(2)}</td>
+                    <td className="py-3 px-4 text-right font-semibold">
+                      {sym}{purchase.total.toFixed(2)}
+                    </td>
                     <td className="py-3 px-4 text-center">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${purchase.payment_status === 'paid' ? 'bg-green-100 text-green-700' : purchase.payment_status === 'partial' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          purchase.payment_status === 'paid'
+                            ? 'bg-green-100 text-green-700'
+                            : purchase.payment_status === 'partial'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
                         {purchase.payment_status}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <button onClick={() => { if (confirm('Delete this purchase?')) deletePurchase(purchase.id); }} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded">
+                      <button
+                        onClick={() => {
+                          if (confirm('Delete this purchase?')) deletePurchase(purchase.id);
+                        }}
+                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </td>
@@ -154,31 +214,64 @@ export default function Purchases() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
+          <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white z-10">
               <h3 className="font-semibold text-lg">New Purchase</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
+              {/* Supplier & Invoice Info */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Supplier *</label>
-                  <input type="text" required value={formData.supplier} onChange={(e) => setFormData({ ...formData, supplier: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Supplier *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.supplier}
+                    onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                    placeholder="e.g., ABC Supplier"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Invoice # *</label>
-                  <input type="text" required value={formData.invoice_number} onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Invoice # *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.invoice_number}
+                    onChange={(e) => setFormData({ ...formData, invoice_number: e.target.value })}
+                    placeholder="INV-001"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
               </div>
 
+              {/* Add Product Section */}
               <div className="border-t pt-4">
-                <h4 className="font-medium text-gray-800 mb-3">Add Items</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div className="sm:col-span-2">
+                <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-blue-600" />
+                  Add Products
+                </h4>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex-1">
                     <SearchableProductSelect
                       products={products}
                       value={selectedProduct}
@@ -187,73 +280,203 @@ export default function Purchases() {
                       placeholder="Search product by name or SKU..."
                     />
                   </div>
-                  <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 0)} placeholder="Qty" className="px-3 py-2 border border-gray-200 rounded-lg text-sm" />
-                  <input type="number" min="0" step="0.01" value={unitCost} onChange={(e) => setUnitCost(parseFloat(e.target.value) || 0)} placeholder="Cost" className="px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    disabled={!selectedProduct}
+                    className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add
+                  </button>
                 </div>
-                <button type="button" onClick={addItem} disabled={!selectedProduct || quantity <= 0 || unitCost <= 0} className="mt-2 flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-                  <Plus className="w-4 h-4" />Add Item
-                </button>
+                {selectedProduct && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Selected:</strong>{' '}
+                      {products.find(p => p.id === selectedProduct)?.name}
+                      {' • Cost: '}
+                      <strong>
+                        {sym}
+                        {products.find(p => p.id === selectedProduct)?.cost.toFixed(2)}
+                      </strong>
+                    </p>
+                  </div>
+                )}
               </div>
 
+              {/* Items Table with Editable Fields */}
               {formData.items.length > 0 && (
                 <div className="border-t pt-4">
-                  <h4 className="font-medium text-gray-800 mb-3">Items ({formData.items.length})</h4>
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left py-2 px-3">Product</th>
-                        <th className="text-right py-2 px-3">Qty</th>
-                        <th className="text-right py-2 px-3">Cost</th>
-                        <th className="text-right py-2 px-3">Total</th>
-                        <th className="text-center py-2 px-3">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formData.items.map((item, idx) => (
-                        <tr key={idx} className="border-t border-gray-50">
-                          <td className="py-2 px-3">{item.product_name}</td>
-                          <td className="py-2 px-3 text-right">{item.quantity}</td>
-                          <td className="py-2 px-3 text-right">{sym}{item.unit_cost.toFixed(2)}</td>
-                          <td className="py-2 px-3 text-right font-medium">{sym}{item.total.toFixed(2)}</td>
-                          <td className="py-2 px-3 text-center">
-                            <button type="button" onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
-                          </td>
+                  <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+                    <Edit3 className="w-4 h-4 text-blue-600" />
+                    Purchase Items ({formData.items.length})
+                    <span className="text-sm font-normal text-gray-500 ml-2">
+                      (Edit price and quantity directly)
+                    </span>
+                  </h4>
+                  <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="text-left py-3 px-4 font-semibold text-gray-700">
+                            Product
+                          </th>
+                          <th className="text-center py-3 px-4 font-semibold text-gray-700 w-40">
+                            <div className="flex items-center justify-center gap-1">
+                              <Edit3 className="w-3 h-3" />
+                              Quantity
+                            </div>
+                          </th>
+                          <th className="text-right py-3 px-4 font-semibold text-gray-700 w-40">
+                            <div className="flex items-center justify-end gap-1">
+                              <Edit3 className="w-3 h-3" />
+                              Unit Cost
+                            </div>
+                          </th>
+                          <th className="text-right py-3 px-4 font-semibold text-gray-700 w-32">
+                            Total
+                          </th>
+                          <th className="text-center py-3 px-4 font-semibold text-gray-700 w-20">
+                            Action
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50 font-medium">
-                      <tr>
-                        <td colSpan={3} className="py-2 px-3 text-right">Subtotal:</td>
-                        <td className="py-2 px-3 text-right">{sym}{subtotal.toFixed(2)}</td>
-                        <td></td>
-                      </tr>
-                      <tr>
-                        <td colSpan={3} className="py-2 px-3 text-right">Tax (5%):</td>
-                        <td className="py-2 px-3 text-right">{sym}{tax.toFixed(2)}</td>
-                        <td></td>
-                      </tr>
-                      <tr className="bg-blue-50">
-                        <td colSpan={3} className="py-2 px-3 text-right font-bold">Total:</td>
-                        <td className="py-2 px-3 text-right font-bold text-blue-600">{sym}{total.toFixed(2)}</td>
-                        <td></td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {formData.items.map((item) => (
+                          <tr
+                            key={item.product_id}
+                            className="border-b border-gray-100 hover:bg-gray-50"
+                          >
+                            <td className="py-3 px-4">
+                              <p className="font-medium text-gray-800">{item.product_name}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {products.find(p => p.id === item.product_id)?.sku}
+                              </p>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateItemQuantity(item.product_id, item.quantity - 1)
+                                  }
+                                  disabled={item.quantity <= 1}
+                                  className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-bold"
+                                >
+                                  −
+                                </button>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) =>
+                                    updateItemQuantity(
+                                      item.product_id,
+                                      parseInt(e.target.value) || 1
+                                    )
+                                  }
+                                  className="w-16 px-2 py-1.5 border border-gray-300 rounded text-center text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateItemQuantity(item.product_id, item.quantity + 1)
+                                  }
+                                  className="w-7 h-7 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors font-bold"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="text-gray-500 text-xs">{sym}</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.unit_cost}
+                                  onChange={(e) =>
+                                    updateItemCost(
+                                      item.product_id,
+                                      parseFloat(e.target.value) || 0
+                                    )
+                                  }
+                                  className="w-24 px-2 py-1.5 border border-gray-300 rounded text-right text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <p className="font-bold text-blue-600 text-base">
+                                {sym}{item.total.toFixed(2)}
+                              </p>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <button
+                                type="button"
+                                onClick={() => removeItem(item.product_id)}
+                                className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                title="Remove item"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-gray-50 font-medium">
+                        <tr className="bg-blue-50">
+                          <td colSpan={3} className="py-3 px-4 text-right font-bold text-base">
+                            Grand Total:
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-blue-600 text-lg">
+                            {sym}{total.toFixed(2)}
+                          </td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
               )}
 
+              {formData.items.length === 0 && (
+                <div className="border-t pt-4">
+                  <div className="p-8 text-center text-gray-400 bg-gray-50 rounded-lg">
+                    <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No items added yet. Search and add products above.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
-                  <select value={formData.payment_status} onChange={(e) => setFormData({ ...formData, payment_status: e.target.value as any })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Status
+                  </label>
+                  <select
+                    value={formData.payment_status}
+                    onChange={(e) =>
+                      setFormData({ ...formData, payment_status: e.target.value as any })
+                    }
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
                     <option value="unpaid">Unpaid</option>
                     <option value="partial">Partial</option>
                     <option value="paid">Paid</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                  <select value={formData.payment_method} onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Method
+                  </label>
+                  <select
+                    value={formData.payment_method}
+                    onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
                     <option value="cash">Cash</option>
                     <option value="bank">Bank Transfer</option>
                     <option value="mobile">Mobile Banking</option>
@@ -263,12 +486,29 @@ export default function Purchases() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" rows={2} />
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Any additional notes..."
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={2}
+                />
               </div>
 
               <div className="flex gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Save Purchase</button>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                >
+                  Save Purchase — {sym}{total.toFixed(2)}
+                </button>
               </div>
             </form>
           </div>
