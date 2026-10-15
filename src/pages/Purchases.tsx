@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData, Purchase } from '../store/DataContext';
 import { Plus, Search, Trash2, X, Package, Edit3 } from 'lucide-react';
 import SearchableProductSelect from '../components/SearchableProductSelect';
@@ -90,8 +90,14 @@ export default function Purchases() {
     });
   };
 
-  const itemsTotal = formData.items.reduce((sum, item) => sum + item.total, 0);
-  const grandTotal = itemsTotal + formData.delivery_charge;
+  // Calculate totals - use useMemo to ensure recalculation on every render
+  const itemsTotal = useMemo(() => {
+    return formData.items.reduce((sum, item) => sum + item.total, 0);
+  }, [formData.items]);
+  
+  const grandTotal = useMemo(() => {
+    return itemsTotal + formData.delivery_charge;
+  }, [itemsTotal, formData.delivery_charge]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

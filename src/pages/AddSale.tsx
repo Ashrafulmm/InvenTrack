@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData, SaleItem } from '../store/DataContext';
 import { Plus, Trash2, CheckCircle, Truck, Percent, Edit3, Package, AlertCircle } from 'lucide-react';
 import SearchableProductSelect from '../components/SearchableProductSelect';
@@ -111,11 +111,24 @@ export default function AddSale() {
     setItems(items.filter(i => i.product_id !== productId));
   };
 
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-  const discount = discountType === 'percentage' ? subtotal * (discountValue / 100) : discountValue;
-  const taxableAmount = subtotal - discount;
-  const tax = taxableAmount * (settings.tax_rate / 100);
-  const total = taxableAmount + tax + deliveryCharge;
+  const subtotal = useMemo(() => {
+    return items.reduce((sum, item) => sum + item.total, 0);
+  }, [items]);
+  const discount = useMemo(() => {
+    return discountType === 'percentage' ? subtotal * (discountValue / 100) : discountValue;
+  }, [subtotal, discountType, discountValue]);
+  
+  const taxableAmount = useMemo(() => {
+    return subtotal - discount;
+  }, [subtotal, discount]);
+  
+  const tax = useMemo(() => {
+    return taxableAmount * (settings.tax_rate / 100);
+  }, [taxableAmount, settings.tax_rate]);
+  
+  const total = useMemo(() => {
+    return taxableAmount + tax + deliveryCharge;
+  }, [taxableAmount, tax, deliveryCharge]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
