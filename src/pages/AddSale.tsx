@@ -11,7 +11,6 @@ interface EditableSaleItem extends SaleItem {
 export default function AddSale() {
   const { products, addSale, settings } = useData();
   const [items, setItems] = useState<EditableSaleItem[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -24,15 +23,31 @@ export default function AddSale() {
   const [showSuccess, setShowSuccess] = useState(false);
   const sym = settings.currency_symbol;
 
-  const addItem = () => {
-    const product = products.find(p => p.id === selectedProduct);
-    if (!product) return;
-    
+  const addItem = (product: typeof products[0]) => {
     // Check if product already in cart
-    const existing = items.find(i => i.product_id === selectedProduct);
+    const existing = items.find(i => i.product_id === product.id);
+    
     if (existing) {
-      // If already exists, just select it for editing
-      setSelectedProduct('');
+      // If already exists, increase quantity
+      const newQuantity = existing.editQuantity + 1;
+      
+      // Validate stock
+      if (newQuantity > product.stock) {
+        alert(`Only ${product.stock} items available in stock!`);
+        return;
+      }
+      
+      setItems(items.map(item => {
+        if (item.product_id === product.id) {
+          return {
+            ...item,
+            editQuantity: newQuantity,
+            quantity: newQuantity,
+            total: item.editPrice * newQuantity,
+          };
+        }
+        return item;
+      }));
       return;
     }
 
@@ -48,7 +63,6 @@ export default function AddSale() {
     };
     
     setItems([...items, newItem]);
-    setSelectedProduct('');
   };
 
   const updateItemPrice = (productId: string, newPrice: number) => {
@@ -168,40 +182,31 @@ export default function AddSale() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Product Search Section */}
         <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Package className="w-5 h-5 text-blue-600" />
-            Add Products to Sale
-          </h3>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <SearchableProductSelect
-                products={products}
-                value={selectedProduct}
-                onChange={setSelectedProduct}
-                currencySymbol={sym}
-                onlyInStock={true}
-                placeholder="Search product by name, SKU, or category..."
-              />
-            </div>
-            <button
-              type="button"
-              onClick={addItem}
-              disabled={!selectedProduct}
-              className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Add to Sale
-            </button>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+              <Package className="w-5 h-5 text-blue-600" />
+              Add Products to Sale
+            </h3>
+            {items.length > 0 && (
+              <div className="bg-blue-600 text-white px-4 py-2 rounded-lg">
+                <p className="text-xs opacity-80">Running Total</p>
+                <p className="text-lg font-bold">{sym}{subtotal.toFixed(2)}</p>
+              </div>
+            )}
           </div>
-          {selectedProduct && (
-            <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Selected:</strong> {products.find(p => p.id === selectedProduct)?.name}
-                {' '} • Stock: <strong>{getProductStock(selectedProduct)}</strong>
-                {' '} • Price: <strong>{sym}{products.find(p => p.id === selectedProduct)?.price.toFixed(2)}</strong>
-              </p>
-            </div>
-          )}
+          <SearchableProductSelect
+            products={products}
+            value=""
+            onChange={() => {}}
+            onSelect={addItem}
+            instantAdd={true}
+            currencySymbol={sym}
+            onlyInStock={true}
+            placeholder="Click a product to add instantly..."
+          />
+          <p className="text-xs text-gray-500 mt-2">
+            💡 Click any product from the list to add it. Click again to increase quantity.
+          </p>
         </div>
 
         {/* Items Table with Editable Fields */}

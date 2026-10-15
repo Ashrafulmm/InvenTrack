@@ -21,11 +21,11 @@ export default function Purchases() {
     invoice_number: '',
     date: new Date().toISOString().split('T')[0],
     items: [] as PurchaseItem[],
+    delivery_charge: 0,
     payment_status: 'unpaid' as 'paid' | 'partial' | 'unpaid',
     payment_method: 'cash',
     notes: '',
   });
-  const [selectedProduct, setSelectedProduct] = useState('');
 
   const filteredPurchases = purchases.filter(p =>
     p.supplier.toLowerCase().includes(search.toLowerCase()) ||
@@ -36,14 +36,18 @@ export default function Purchases() {
   const paidPurchases = purchases.filter(p => p.payment_status === 'paid').reduce((sum, p) => sum + p.total, 0);
   const unpaidPurchases = purchases.filter(p => p.payment_status !== 'paid').reduce((sum, p) => sum + p.total, 0);
 
-  const addItem = () => {
-    const product = products.find(p => p.id === selectedProduct);
-    if (!product) return;
-
-    // Check if already in list
-    const existing = formData.items.find(i => i.product_id === selectedProduct);
+  const addItem = (product: typeof products[0]) => {
+    // Check if already in list - if so, increase quantity
+    const existing = formData.items.find(i => i.product_id === product.id);
     if (existing) {
-      setSelectedProduct('');
+      setFormData({
+        ...formData,
+        items: formData.items.map(item =>
+          item.product_id === product.id
+            ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.unit_cost }
+            : item
+        ),
+      });
       return;
     }
 
@@ -56,7 +60,6 @@ export default function Purchases() {
     };
 
     setFormData({ ...formData, items: [...formData.items, newItem] });
-    setSelectedProduct('');
   };
 
   const removeItem = (productId: string) => {
@@ -87,7 +90,8 @@ export default function Purchases() {
     });
   };
 
-  const total = formData.items.reduce((sum, item) => sum + item.total, 0);
+  const itemsTotal = formData.items.reduce((sum, item) => sum + item.total, 0);
+  const grandTotal = itemsTotal + formData.delivery_charge;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,13 +100,14 @@ export default function Purchases() {
       return;
     }
 
-    await addPurchase({ ...formData, subtotal: total, tax: 0, total });
+    await addPurchase({ ...formData, subtotal: itemsTotal, tax: 0, delivery_charge: formData.delivery_charge, total: grandTotal });
     setShowModal(false);
     setFormData({
       supplier: '',
       invoice_number: '',
       date: new Date().toISOString().split('T')[0],
       items: [],
+      delivery_charge: 0,
       payment_status: 'unpaid',
       payment_method: 'cash',
       notes: '',
@@ -266,43 +271,30 @@ export default function Purchases() {
 
               {/* Add Product Section */}
               <div className="border-t pt-4">
-                <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
-                  <Package className="w-4 h-4 text-blue-600" />
-                  Add Products
-                </h4>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1">
-                    <SearchableProductSelect
-                      products={products}
-                      value={selectedProduct}
-                      onChange={setSelectedProduct}
-                      currencySymbol={sym}
-                      placeholder="Search product by name or SKU..."
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={addItem}
-                    disabled={!selectedProduct}
-                    className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add
-                  </button>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-gray-800 flex items-center gap-2">
+                    <Package className="w-4 h-4 text-blue-600" />
+                    Add Products
+                  </h4>
+                  {formData.items.length > 0 && (
+                    <div className="bg-blue-600 text-white px-4 py-2 rounded-lg">
+                      <p className="text-xs opacity-80">Running Total</p>
+                      <p className="text-lg font-bold">{sym}{itemsTotal.toFixed(2)}</p>
+                    </div>
+                  )}
                 </div>
-                {selectedProduct && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      <strong>Selected:</strong>{' '}
-                      {products.find(p => p.id === selectedProduct)?.name}
-                      {' • Cost: '}
-                      <strong>
-                        {sym}
-                        {products.find(p => p.id === selectedProduct)?.cost.toFixed(2)}
-                      </strong>
-                    </p>
-                  </div>
-                )}
+                <SearchableProductSelect
+                  products={products}
+                  value=""
+                  onChange={() => {}}
+                  onSelect={addItem}
+                  instantAdd={true}
+                  currencySymbol={sym}
+                  placeholder="Click a product to add instantly..."
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 Click any product from the list to add it. Click again to increase quantity.
+                </p>
               </div>
 
               {/* Items Table with Editable Fields */}
@@ -426,12 +418,30 @@ export default function Purchases() {
                         ))}
                       </tbody>
                       <tfoot className="bg-gray-50 font-medium">
-                        <tr className="bg-blue-50">
+                        <tr>
+                          <td colSpan={3} className="py-2 px-4 text-right text-gray-600">
+                            Items Total:
+                          </td>
+                          <td className="py-2 px-4 text-right font-medium">
+                            {sym}{itemsTotal.toFixed(2)}
+                          </td>
+                          <td></td>
+                        </tr>
+                        <tr>
+                          <td colSpan={3} className="py-2 px-4 text-right text-gray-600">
+                            Delivery Charge:
+                          </td>
+                          <td className="py-2 px-4 text-right font-medium">
+                            {sym}{formData.delivery_charge.toFixed(2)}
+                          </td>
+                          <td></td>
+                        </tr>
+                        <tr className="bg-blue-50 border-t-2 border-blue-200">
                           <td colSpan={3} className="py-3 px-4 text-right font-bold text-base">
                             Grand Total:
                           </td>
                           <td className="py-3 px-4 text-right font-bold text-blue-600 text-lg">
-                            {sym}{total.toFixed(2)}
+                            {sym}{grandTotal.toFixed(2)}
                           </td>
                           <td></td>
                         </tr>
@@ -449,6 +459,30 @@ export default function Purchases() {
                   </div>
                 </div>
               )}
+
+              {/* Delivery Charge */}
+              <div className="border-t pt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Delivery Charge ({sym})
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.delivery_charge}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      delivery_charge: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  placeholder="0.00"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Optional: Add delivery/transport charges for this purchase
+                </p>
+              </div>
 
               {/* Payment Info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
@@ -507,7 +541,7 @@ export default function Purchases() {
                   type="submit"
                   className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
                 >
-                  Save Purchase — {sym}{total.toFixed(2)}
+                  Save Purchase — {sym}{grandTotal.toFixed(2)}
                 </button>
               </div>
             </form>

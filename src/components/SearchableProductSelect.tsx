@@ -1,31 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, X, Package } from 'lucide-react';
+import { Search, X, Package, Check } from 'lucide-react';
 import { Product } from '../store/DataContext';
 
 interface SearchableProductSelectProps {
   products: Product[];
   value: string;
   onChange: (productId: string) => void;
+  onSelect?: (product: Product) => void; // Instant add on click
   placeholder?: string;
   currencySymbol?: string;
   showStock?: boolean;
   onlyInStock?: boolean;
   disabled?: boolean;
+  instantAdd?: boolean; // If true, clicking a product immediately adds it
 }
 
 export default function SearchableProductSelect({
   products,
   value,
   onChange,
+  onSelect,
   placeholder = 'Search product by name or SKU...',
   currencySymbol = '৳',
   showStock = true,
   onlyInStock = false,
   disabled = false,
+  instantAdd = false,
 }: SearchableProductSelectProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -40,11 +45,10 @@ export default function SearchableProductSelect({
         p.category.toLowerCase().includes(q)
       );
     })
-    .slice(0, 50); // Limit for performance
+    .slice(0, 50);
 
   const selectedProduct = products.find(p => p.id === value);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -55,16 +59,32 @@ export default function SearchableProductSelect({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Reset highlight when query changes
   useEffect(() => {
     setHighlightIndex(-1);
   }, [query]);
 
+  // Clear "just added" feedback after 1 second
+  useEffect(() => {
+    if (justAdded) {
+      const timer = setTimeout(() => setJustAdded(null), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [justAdded]);
+
   const handleSelect = (product: Product) => {
-    onChange(product.id);
-    setQuery('');
-    setIsOpen(false);
-    inputRef.current?.blur();
+    if (instantAdd && onSelect) {
+      // Single click - immediately add
+      onSelect(product);
+      setJustAdded(product.id);
+      setQuery('');
+      inputRef.current?.focus();
+    } else {
+      // Normal selection
+      onChange(product.id);
+      setQuery('');
+      setIsOpen(false);
+      inputRef.current?.blur();
+    }
   };
 
   const handleClear = (e: React.MouseEvent) => {
@@ -126,7 +146,7 @@ export default function SearchableProductSelect({
           disabled={disabled}
           className="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
         />
-        {selectedProduct && !isOpen && (
+        {selectedProduct && !isOpen && !instantAdd && (
           <button
             type="button"
             onClick={handleClear}
@@ -139,7 +159,7 @@ export default function SearchableProductSelect({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-72 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
           {filteredProducts.length === 0 ? (
             <div className="px-4 py-6 text-center text-gray-500 text-sm">
               <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -147,40 +167,59 @@ export default function SearchableProductSelect({
             </div>
           ) : (
             <>
-              <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 flex justify-between">
-                <span>{filteredProducts.length} {filteredProducts.length === 50 ? '+' : ''} results</span>
-                <span>Use ↑↓ to navigate</span>
+              <div className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 flex justify-between sticky top-0">
+                <span>
+                  {filteredProducts.length} {filteredProducts.length === 50 ? '+' : ''} results
+                  {instantAdd && <span className="ml-2 text-blue-600 font-medium">• Click to add instantly</span>}
+                </span>
+                <span>↑↓ to navigate</span>
               </div>
-              {filteredProducts.map((product, idx) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => handleSelect(product)}
-                  onMouseEnter={() => setHighlightIndex(idx)}
-                  className={`w-full px-3 py-2 text-left border-b border-gray-50 last:border-0 transition-colors ${
-                    highlightIndex === idx ? 'bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{product.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs font-mono text-gray-500">{product.sku}</span>
-                        <span className="text-xs text-gray-400">•</span>
-                        <span className="text-xs text-gray-500">{product.category}</span>
+              {filteredProducts.map((product, idx) => {
+                const isJustAdded = justAdded === product.id;
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => handleSelect(product)}
+                    onMouseEnter={() => setHighlightIndex(idx)}
+                    className={`w-full px-3 py-2.5 text-left border-b border-gray-50 last:border-0 transition-all ${
+                      isJustAdded
+                        ? 'bg-green-50 border-l-4 border-l-green-500'
+                        : highlightIndex === idx
+                        ? 'bg-blue-50'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-800 truncate">
+                            {product.name}
+                          </p>
+                          {isJustAdded && (
+                            <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs font-mono text-gray-500">{product.sku}</span>
+                          <span className="text-xs text-gray-400">•</span>
+                          <span className="text-xs text-gray-500">{product.category}</span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-semibold text-blue-600">
+                          {currencySymbol}{(instantAdd ? product.cost : product.price).toFixed(2)}
+                        </p>
+                        {showStock && (
+                          <p className={`text-xs ${product.stock <= product.min_stock ? 'text-red-600' : 'text-gray-500'}`}>
+                            Stock: {product.stock}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-semibold text-blue-600">{currencySymbol}{product.price.toFixed(2)}</p>
-                      {showStock && (
-                        <p className={`text-xs ${product.stock <= product.min_stock ? 'text-red-600' : 'text-gray-500'}`}>
-                          Stock: {product.stock}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </>
           )}
         </div>
