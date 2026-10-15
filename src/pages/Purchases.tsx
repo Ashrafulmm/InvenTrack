@@ -26,7 +26,6 @@ export default function Purchases() {
     payment_method: 'cash',
     notes: '',
   });
-  const [selectedProduct, setSelectedProduct] = useState('');
 
   const filteredPurchases = purchases.filter(p =>
     p.supplier.toLowerCase().includes(search.toLowerCase()) ||
@@ -37,14 +36,18 @@ export default function Purchases() {
   const paidPurchases = purchases.filter(p => p.payment_status === 'paid').reduce((sum, p) => sum + p.total, 0);
   const unpaidPurchases = purchases.filter(p => p.payment_status !== 'paid').reduce((sum, p) => sum + p.total, 0);
 
-  const addItem = () => {
-    const product = products.find(p => p.id === selectedProduct);
-    if (!product) return;
-
-    // Check if already in list
-    const existing = formData.items.find(i => i.product_id === selectedProduct);
+  const addItem = (product: typeof products[0]) => {
+    // Check if already in list - if so, increase quantity
+    const existing = formData.items.find(i => i.product_id === product.id);
     if (existing) {
-      setSelectedProduct('');
+      setFormData({
+        ...formData,
+        items: formData.items.map(item =>
+          item.product_id === product.id
+            ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.unit_cost }
+            : item
+        ),
+      });
       return;
     }
 
@@ -57,7 +60,6 @@ export default function Purchases() {
     };
 
     setFormData({ ...formData, items: [...formData.items, newItem] });
-    setSelectedProduct('');
   };
 
   const removeItem = (productId: string) => {
@@ -269,43 +271,30 @@ export default function Purchases() {
 
               {/* Add Product Section */}
               <div className="border-t pt-4">
-                <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
-                  <Package className="w-4 h-4 text-blue-600" />
-                  Add Products
-                </h4>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1">
-                    <SearchableProductSelect
-                      products={products}
-                      value={selectedProduct}
-                      onChange={setSelectedProduct}
-                      currencySymbol={sym}
-                      placeholder="Search product by name or SKU..."
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={addItem}
-                    disabled={!selectedProduct}
-                    className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add
-                  </button>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-gray-800 flex items-center gap-2">
+                    <Package className="w-4 h-4 text-blue-600" />
+                    Add Products
+                  </h4>
+                  {formData.items.length > 0 && (
+                    <div className="bg-blue-600 text-white px-4 py-2 rounded-lg">
+                      <p className="text-xs opacity-80">Running Total</p>
+                      <p className="text-lg font-bold">{sym}{itemsTotal.toFixed(2)}</p>
+                    </div>
+                  )}
                 </div>
-                {selectedProduct && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      <strong>Selected:</strong>{' '}
-                      {products.find(p => p.id === selectedProduct)?.name}
-                      {' • Cost: '}
-                      <strong>
-                        {sym}
-                        {products.find(p => p.id === selectedProduct)?.cost.toFixed(2)}
-                      </strong>
-                    </p>
-                  </div>
-                )}
+                <SearchableProductSelect
+                  products={products}
+                  value=""
+                  onChange={() => {}}
+                  onSelect={addItem}
+                  instantAdd={true}
+                  currencySymbol={sym}
+                  placeholder="Click a product to add instantly..."
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 Click any product from the list to add it. Click again to increase quantity.
+                </p>
               </div>
 
               {/* Items Table with Editable Fields */}

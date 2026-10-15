@@ -123,7 +123,7 @@ export default function Inventory() {
               <tr>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
                 <th className="text-left py-3 px-4 font-medium text-gray-600">SKU</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-600">Category</th>
+                <th className="text-right py-3 px-4 font-medium text-gray-600">Stock Value</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-600">Price</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-600">Cost</th>
                 <th className="text-right py-3 px-4 font-medium text-gray-600">Stock</th>
@@ -138,15 +138,12 @@ export default function Inventory() {
                     <div>
                       <p className="font-medium text-gray-800">{product.name}</p>
                       <p className="text-xs text-gray-500">{product.description}</p>
-                      <p className="text-xs font-semibold text-blue-600 mt-1">
-                        Stock Value: {sym}{(product.cost * product.stock).toFixed(2)}
-                      </p>
                     </div>
                   </td>
                   <td className="py-3 px-4 font-mono text-xs text-gray-600">{product.sku}</td>
-                  <td className="py-3 px-4">
-                    <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                      {product.category}
+                  <td className="py-3 px-4 text-right">
+                    <span className="font-semibold text-blue-600">
+                      {sym}{(product.cost * product.stock).toFixed(2)}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right font-medium">{sym}{product.price.toFixed(2)}</td>
